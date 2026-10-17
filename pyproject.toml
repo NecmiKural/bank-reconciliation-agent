@@ -10,6 +10,7 @@ requires-python = ">=3.13"
 dependencies = [
     "faker>=40.43.0",
     "holidays>=0.106",
+    "psycopg[binary]>=3.3.6",
 ]
 
 [build-system]

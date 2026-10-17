@@ -1,0 +1,16 @@
+# Local Postgres with pgvector and pg_trgm. Bound to localhost only; the password is for
+# local development and the CI service, never for anything reachable from a network.
+services:
+  db:
+    image: pgvector/pgvector:0.8.7-pg17
+    environment:
+      POSTGRES_USER: recon
+      POSTGRES_PASSWORD: recon
+      POSTGRES_DB: recon
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recon -d recon"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
