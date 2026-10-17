@@ -27,6 +27,8 @@ from pathlib import Path
 import holidays
 from faker import Faker
 
+from recon.redact import ird_check_digit, ird_is_valid  # noqa: F401  (re-exported)
+
 WINDOW_START = date(2026, 1, 1)
 LAST_ISSUE = date(2026, 6, 15)
 LAST_PAYMENT = date(2026, 7, 24)
@@ -120,9 +122,6 @@ WORDING = (
         },
     },
 )
-
-_IRD_PRIMARY = (3, 2, 7, 6, 5, 4, 3, 2)
-_IRD_SECONDARY = (7, 4, 3, 2, 5, 2, 7, 6)
 
 
 @dataclass(frozen=True)
@@ -230,25 +229,6 @@ SPECS = (
         wording=1,
     ),
 )
-
-
-def ird_check_digit(base: int) -> int | None:
-    """IRD mod-11 check digit for the number without its last digit, or None if invalid."""
-    digits = [int(d) for d in f"{base:08d}"]
-    for weights in (_IRD_PRIMARY, _IRD_SECONDARY):
-        remainder = sum(d * w for d, w in zip(digits, weights, strict=True)) % 11
-        check = 0 if remainder == 0 else 11 - remainder
-        if check != 10:
-            return check
-    return None
-
-
-def ird_is_valid(text: str) -> bool:
-    digits = re.sub(r"\D", "", text)
-    if not digits or not 10_000_000 <= int(digits) <= 150_000_000:
-        return False
-    number = int(digits)
-    return ird_check_digit(number // 10) == number % 10
 
 
 def next_business_day(day: date) -> date:
