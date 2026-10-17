@@ -20,6 +20,20 @@ A rules-first, tool-calling agent that matches New Zealand small-business bank l
 
 > **Synthetic data only.** Every business, contact, invoice and bank line is generated from a seed. No real customer, accounting-platform, tax-authority or employer data is used, and only synthetic data is ever sent to a model provider.
 
+## Run
+
+Needs [uv](https://docs.astral.sh/uv/) and Docker.
+
+```bash
+docker compose up -d --wait            # Postgres 17 with pgvector and pg_trgm on localhost:5433
+uv sync
+uv run recon synth --out data          # write the two synthetic businesses as JSON
+uv run recon baseline --business A     # load business A and score the rules pass alone
+uv run pytest                          # includes least-privilege tests against the database
+```
+
+Copy `.env.example` to `.env` for the model keys; `uv run --env-file .env ...` reads it.
+
 ## How this was built
 
 Pair-programmed with Claude Code. I reviewed every line, and the rules the coding agent works under are committed in [AGENTS.md](AGENTS.md).
@@ -30,7 +44,7 @@ A portfolio project, not accounting advice.
 
 ## Tech
 
-Python 3.13 · uv · pytest · ruff · GitHub Actions
+Python 3.13 · uv · PostgreSQL 17 · pg_trgm · pgvector · psycopg 3 · Docker Compose · pytest · ruff · GitHub Actions
 
 ---
 *Personal portfolio project, MIT licensed.*
