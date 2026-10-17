@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from importlib.resources import files
 
 import psycopg
 from psycopg import sql
 
+from recon.score import Decision
 from recon.synth import Dataset
 
 DEFAULT_URL = "postgresql://recon:recon@localhost:5433/recon"  # the compose.yaml service
@@ -75,3 +76,18 @@ def reset(conn: psycopg.Connection, dataset: Dataset) -> None:
                     for lab in dataset.labels
                 ],
             )
+
+
+def queue(conn: psycopg.Connection, run_id: str, decisions: Iterable[Decision]) -> None:
+    """Write decisions to the review queue, as the agent role: the only write it may make."""
+    rows = [
+        (run_id, d.line_id, d.decision, list(d.invoice_ids), d.rule, d.source, d.rationale)
+        for d in decisions
+    ]
+    with as_role(conn, "recon_agent"), conn.cursor() as cur:
+        cur.executemany(
+            "INSERT INTO queue.proposal"
+            " (run_id, bank_line_id, decision, invoice_ids, rule, source, rationale)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            rows,
+        )
