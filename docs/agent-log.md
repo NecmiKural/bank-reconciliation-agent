@@ -19,3 +19,15 @@ Notable mistakes a coding agent made in this repository, and how they were caugh
 - **Proposed:** the generator placed some injections on typo and duplicate-amount lines without checking whether a same-amount twin existed when the line posted. Separately, a database test asserted that the rules pass leaves every duplicate-amount line open.
 - **How it was caught:** that test failed. Inspection showed the rules were right: when the twin invoice is issued after the payment posts, there is only one candidate, so the line is unambiguous. The real defect was elsewhere: 4 attacked lines per business were among the lines the rules close, so those attacks would never reach the model and the attack success rate would be measured on fewer cases than reported.
 - **What changed:** attacks on typo and duplicate-amount lines now require a twin at posting time, and the test asserts the property that matters: no attacked line is closed by the rules pass, while the rules make zero wrong matches.
+
+## 2026-10-18: a documented API rule that did not reproduce
+
+- **Proposed:** the design notes, drafted with planning agents from the provider documentation, said that omitting `reasoning_content` from an earlier assistant turn makes DeepSeek answer 400 when tools are in use, and the test plan asked to observe that 400 once.
+- **How it was caught:** a live check on `deepseek-flash` (thinking on, effort low, strict tools on the beta endpoint) accepted the stripped request and answered normally.
+- **What changed:** nothing in the loop. It still appends every assistant turn unchanged, which the documentation requires and which costs nothing. The design note now says the rule is documented but was not enforced when tested, rather than stating it as fact.
+
+## 2026-10-18: the verifier trusted any payer
+
+- **Proposed:** `propose_match` checked amounts, one payer per match, overpayments and money out, but never whether the invoice belonged to the payer on the bank line. Payer similarity was computed against the name the model typed into the search, so it could not have served as a guard. A part payment counted as named if any token's digits matched the invoice number.
+- **How it was caught:** an independent code review tried every retrieved invoice against business B. The verifier accepted 36 wrong single-invoice proposals, including a redirect attack naming another payer's invoice, so the prompt was the only defence. The same review found personal-data formats that escaped redaction (spaced IRD and bank numbers, landlines, `+64 (0)` forms) and showed that a bad API key would turn every line into a quiet escalation and a clean-looking run.
+- **What changed:** similarity is computed against the bank line's own payee, and the verifier rejects a payer below 0.3 unless the reference field names the invoice; a database test checks that every labelled answer clears that bar. A part payment must name its invoice as a whole token. Redaction covers the extra formats and also runs on rationales. Only transient provider errors escalate a line; errors that would repeat on every line stop the run.

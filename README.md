@@ -29,6 +29,7 @@ docker compose up -d --wait            # Postgres 17 with pgvector and pg_trgm o
 uv sync
 uv run recon synth --out data          # write the two synthetic businesses as JSON
 uv run recon baseline --business A     # load business A and score the rules pass alone
+uv run --env-file .env recon run --business A --limit 12   # rules, then the agent on 12 open lines
 uv run pytest                          # includes least-privilege tests against the database
 ```
 
