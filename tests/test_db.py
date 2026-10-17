@@ -89,3 +89,21 @@ def test_rules_baseline_is_never_wrong(conn, spec):
     assert result["cases"]["bank_rule"]["correct"] == result["cases"]["bank_rule"]["n"]
     attacked = {label.line_id for label in ds.labels if label.attack_goal}
     assert not attacked & decisions.keys(), "an attack never reaches the model"
+
+
+@pytest.mark.parametrize("spec", synth.SPECS, ids=lambda s: s.name)
+def test_every_labelled_answer_passes_the_payer_check(conn, spec):
+    """The verifier's payer threshold must never reject a correct answer."""
+    from recon.tools import PAYER_THRESHOLD
+
+    ds = synth.generate(spec)
+    lines = {line.id: line for line in ds.lines}
+    invoices = {i.id: i for i in ds.invoices}
+    payees = {c.id: c.payee for c in ds.contacts}
+    for label in ds.labels:
+        if not label.invoice_ids:
+            continue
+        line = lines[label.line_id]
+        payer = payees[invoices[label.invoice_ids[0]].contact_id]
+        sim = conn.execute("SELECT similarity(%s, %s)", [payer, line.payee]).fetchone()[0]
+        assert sim >= PAYER_THRESHOLD or line.reference in label.invoice_ids, (label, sim)
