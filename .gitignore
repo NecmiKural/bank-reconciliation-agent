@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Secrets: keys live in .env and are never committed
+.env
+
+# Generated data, runs and local tool output
+data/
+runs/
+.context/
+graphify-out/
+
+# OS
+.DS_Store
