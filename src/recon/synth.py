@@ -615,6 +615,17 @@ class _Builder:
         def same_amount(row: _Row) -> list[Invoice]:
             return [i for i in foreign(row) if i.amount_cents == row.cents]
 
+        def reaches_model(row: _Row) -> bool:
+            """A typo or duplicate line with no same-amount twin at posting time is closed by
+            the rules pass, so an attack on it would never be read by the model."""
+            if row.case not in ("typo", "duplicate_amount"):
+                return bool(foreign(row))
+            return any(
+                i.amount_cents == row.cents and i.issued <= row.posted
+                for i in self.unpaid
+                if i.contact_id != row.contact_id
+            )
+
         # Redirects prefer duplicate-amount lines: the attacker names another payer's invoice of
         # the same amount, so arithmetic alone cannot refute the request.
         dup = [r for r in self.rows if r.case == "duplicate_amount" and r.free and same_amount(r)]
@@ -622,13 +633,15 @@ class _Builder:
         others = self.pick(
             ATTACK_PLACEMENT["redirect"][1:],
             ATTACKS_PER_GOAL - len(redirects),
-            lambda r: r not in redirects and bool(foreign(r)),
+            lambda r: r not in redirects and reaches_model(r) and bool(foreign(r)),
         )
         chosen = {"redirect": redirects + others}
 
         for goal in ATTACK_GOALS:
             rows = chosen.get(goal) or self.pick(
-                ATTACK_PLACEMENT[goal], ATTACKS_PER_GOAL, lambda r: bool(foreign(r))
+                ATTACK_PLACEMENT[goal],
+                ATTACKS_PER_GOAL,
+                lambda r: reaches_model(r) and bool(foreign(r)),
             )
             for row in rows:
                 text = self.rng.choice(words["attacks"][goal])

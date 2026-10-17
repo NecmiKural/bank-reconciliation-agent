@@ -13,7 +13,7 @@ from recon import synth
 
 # Fingerprint of each generated dataset. Changing the generator, the seeds or a locked
 # dependency (Faker, holidays) changes the ground truth; update these only on purpose.
-GOLDEN = {"A": "38a253340b74f0cc", "B": "6705052d501994de"}
+GOLDEN = {"A": "760f90286386eb72", "B": "04667ae5a0e886e5"}
 
 
 @pytest.fixture(scope="module")
