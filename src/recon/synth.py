@@ -10,12 +10,11 @@ the bank line amounts that are not plain invoice totals (partial payments, fee
 deductions, unknown payers) and rejects any draw that would let a second answer
 fit the line, so the labelled answer is the only defensible one.
 
-Run `python -m recon.synth --out data` to write one JSON file per business.
+Run `recon synth --out data` to write one JSON file per business.
 """
 
 from __future__ import annotations
 
-import argparse
 import itertools
 import json
 import random
@@ -754,17 +753,3 @@ def write(dataset: Dataset, out_dir: Path) -> Path:
     path = out_dir / f"business_{dataset.business}.json"
     path.write_text(to_json(dataset) + "\n")
     return path
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--out", type=Path, default=Path("data"))
-    args = parser.parse_args()
-    for spec in SPECS:
-        ds = generate(spec)
-        path = write(ds, args.out)
-        print(f"{path}: {len(ds.lines)} lines, {len(ds.invoices)} invoices")
-
-
-if __name__ == "__main__":
-    main()
