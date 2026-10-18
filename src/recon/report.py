@@ -26,10 +26,13 @@ ABLATIONS = {
 }
 
 
+MARKERS = {"runs": "business", "retrieval": "retrieval", "rules": "rules"}
+
+
 def load(results_dir: Path, kind: str = "runs") -> list[dict[str, Any]]:
-    """Results files of one kind: pipeline runs, or the retrieval ablation."""
+    """Results files of one kind: pipeline runs, the retrieval ablation, or the rule compiler."""
     files = [json.loads(p.read_text()) for p in sorted(results_dir.glob("*.json"))]
-    return [f for f in files if (kind in f)]
+    return [f for f in files if MARKERS[kind] in f]
 
 
 def pick(
