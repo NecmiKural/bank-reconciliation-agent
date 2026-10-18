@@ -15,7 +15,7 @@ build/
 # Generated data, runs and local tool output
 data/
 runs/
-cassettes/
+/cassettes/
 .context/
 graphify-out/
 
