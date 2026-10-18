@@ -1,0 +1,1121 @@
+{
+ "bad_rules": {
+  "distinct_sentences": [
+   "R34"
+  ],
+  "upper95": 0.1288
+ },
+ "commit": "996511d",
+ "generated_at": "2026-10-18T21:22:12+00:00",
+ "mode": "record",
+ "model": "ollama:gpt-oss:20b",
+ "prompt": "db9206ee1ed6",
+ "repeats": 3,
+ "rules": true,
+ "runs": [
+  {
+   "outcomes": {
+    "R01": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1000,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R02": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1250,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R03": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 300,
+      "payee_contains": "CREDIT INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R04": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R05": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 8000,
+      "payee_contains": "MERCHANT SERVICE FEE"
+     },
+     "status": "accepted"
+    },
+    "R06": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 10000,
+      "payee_contains": "MERCHANT SERVICE FEE"
+     },
+     "status": "accepted"
+    },
+    "R07": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "INTL TXN FEE"
+     },
+     "status": "accepted"
+    },
+    "R08": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "DISHONOUR FEE"
+     },
+     "status": "accepted"
+    },
+    "R09": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 5000,
+      "payee_contains": "UNARRANGED OVERDRAFT FEE"
+     },
+     "status": "accepted"
+    },
+    "R10": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 400,
+      "payee_contains": "INTEREST PAID"
+     },
+     "status": "accepted"
+    },
+    "R11": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 6000,
+      "payee_contains": "EFTPOS TERMINAL RENTAL"
+     },
+     "status": "accepted"
+    },
+    "R12": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 9000,
+      "payee_contains": "STRIPE FEES"
+     },
+     "status": "accepted"
+    },
+    "R13": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 800,
+      "payee_contains": "ACCOUNT KEEPING FEE"
+     },
+     "status": "accepted"
+    },
+    "R14": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "CARD FEE CHARGED"
+     },
+     "status": "accepted"
+    },
+    "R15": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 500,
+      "payee_contains": "ONLINE BANKING FEE"
+     },
+     "status": "accepted"
+    },
+    "R16": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 250,
+      "payee_contains": "BONUS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R17": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2000,
+      "payee_contains": "SERVICE CHARGE"
+     },
+     "status": "accepted"
+    },
+    "R18": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3500,
+      "payee_contains": "GATEWAY FEE"
+     },
+     "status": "accepted"
+    },
+    "R19": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "TELEGRAPHIC TRANSFER FEE"
+     },
+     "status": "accepted"
+    },
+    "R20": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 300,
+      "payee_contains": "CHEQUE FEE"
+     },
+     "status": "accepted"
+    },
+    "R21": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 150,
+      "payee_contains": "INTEREST ADJUSTMENT"
+     },
+     "status": "accepted"
+    },
+    "R22": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 7500,
+      "payee_contains": "SQUARE PROCESSING FEE"
+     },
+     "status": "accepted"
+    },
+    "R23": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 200,
+      "payee_contains": "PAPER STATEMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R24": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 4000,
+      "payee_contains": "WINDCAVE FEE"
+     },
+     "status": "accepted"
+    },
+    "R25": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 500,
+      "payee_contains": "TD INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R26": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1800,
+      "payee_contains": "FOREIGN CURRENCY FEE"
+     },
+     "status": "accepted"
+    },
+    "R27": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 600,
+      "payee_contains": "POLI PAYMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R28": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "BANK CHARGES ADJ"
+     },
+     "status": "accepted"
+    },
+    "R29": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 450,
+      "payee_contains": "SAVINGS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R30": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "SECURE CARD FEE"
+     },
+     "status": "accepted"
+    },
+    "R31": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R32": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R33": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R34": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 10000,
+      "payee_contains": "UNARRANGED OVERDRAFT FEE"
+     },
+     "status": "accepted"
+    },
+    "R35": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R36": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R37": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R38": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R39": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R40": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    }
+   },
+   "summary": {
+    "compiled_exactly": 29,
+    "falsely_refused": [
+     "R04"
+    ],
+    "invalid_replies": 0,
+    "refused_by_model": 10,
+    "refused_by_validator": 0,
+    "should_accept": 30,
+    "should_refuse": 10,
+    "unsafe_rules_accepted": [
+     "R34"
+    ],
+    "wrong_rules_accepted": []
+   }
+  },
+  {
+   "outcomes": {
+    "R01": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1000,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R02": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1250,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R03": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 300,
+      "payee_contains": "CREDIT INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R04": {
+     "reason": "the sentence does not specify a payee description, amount limit, or clear account type",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R05": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 8000,
+      "payee_contains": "MERCHANT SERVICE FEE"
+     },
+     "status": "accepted"
+    },
+    "R06": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 10000,
+      "payee_contains": "MERCHANT SERVICE FEE"
+     },
+     "status": "accepted"
+    },
+    "R07": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "INTL TXN FEE"
+     },
+     "status": "accepted"
+    },
+    "R08": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "DISHONOUR FEE"
+     },
+     "status": "accepted"
+    },
+    "R09": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 5000,
+      "payee_contains": "UNARRANGED OVERDRAFT FEE"
+     },
+     "status": "accepted"
+    },
+    "R10": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 400,
+      "payee_contains": "INTEREST PAID"
+     },
+     "status": "accepted"
+    },
+    "R11": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 6000,
+      "payee_contains": "EFTPOS TERMINAL RENTAL"
+     },
+     "status": "accepted"
+    },
+    "R12": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 9000,
+      "payee_contains": "STRIPE FEES"
+     },
+     "status": "accepted"
+    },
+    "R13": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 800,
+      "payee_contains": "ACCOUNT KEEPING FEE"
+     },
+     "status": "accepted"
+    },
+    "R14": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "CARD FEE CHARGED"
+     },
+     "status": "accepted"
+    },
+    "R15": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 500,
+      "payee_contains": "ONLINE BANKING FEE"
+     },
+     "status": "accepted"
+    },
+    "R16": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 250,
+      "payee_contains": "BONUS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R17": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2000,
+      "payee_contains": "SERVICE CHARGE"
+     },
+     "status": "accepted"
+    },
+    "R18": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3500,
+      "payee_contains": "GATEWAY FEE"
+     },
+     "status": "accepted"
+    },
+    "R19": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "TELEGRAPHIC TRANSFER FEE"
+     },
+     "status": "accepted"
+    },
+    "R20": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 300,
+      "payee_contains": "CHEQUE FEE"
+     },
+     "status": "accepted"
+    },
+    "R21": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 150,
+      "payee_contains": "INTEREST ADJUSTMENT"
+     },
+     "status": "accepted"
+    },
+    "R22": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 7500,
+      "payee_contains": "SQUARE PROCESSING FEE"
+     },
+     "status": "accepted"
+    },
+    "R23": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 200,
+      "payee_contains": "PAPER STATEMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R24": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 4000,
+      "payee_contains": "WINDCAVE FEE"
+     },
+     "status": "accepted"
+    },
+    "R25": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 500,
+      "payee_contains": "TD INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R26": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1800,
+      "payee_contains": "FOREIGN CURRENCY FEE"
+     },
+     "status": "accepted"
+    },
+    "R27": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 600,
+      "payee_contains": "POLI PAYMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R28": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "BANK CHARGES ADJ"
+     },
+     "status": "accepted"
+    },
+    "R29": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 450,
+      "payee_contains": "SAVINGS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R30": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "SECURE CARD FEE"
+     },
+     "status": "accepted"
+    },
+    "R31": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R32": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R33": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R34": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 10000,
+      "payee_contains": "UNARRANGED OVERDRAFT FEE"
+     },
+     "status": "accepted"
+    },
+    "R35": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R36": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R37": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R38": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R39": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R40": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    }
+   },
+   "summary": {
+    "compiled_exactly": 29,
+    "falsely_refused": [
+     "R04"
+    ],
+    "invalid_replies": 0,
+    "refused_by_model": 10,
+    "refused_by_validator": 0,
+    "should_accept": 30,
+    "should_refuse": 10,
+    "unsafe_rules_accepted": [
+     "R34"
+    ],
+    "wrong_rules_accepted": []
+   }
+  },
+  {
+   "outcomes": {
+    "R01": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1000,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R02": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1250,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R03": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 300,
+      "payee_contains": "CREDIT INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R04": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R05": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 8000,
+      "payee_contains": "MERCHANT SERVICE FEE"
+     },
+     "status": "accepted"
+    },
+    "R06": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R07": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "INTL TXN FEE"
+     },
+     "status": "accepted"
+    },
+    "R08": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "DISHONOUR FEE"
+     },
+     "status": "accepted"
+    },
+    "R09": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 5000,
+      "payee_contains": "UNARRANGED OVERDRAFT FEE"
+     },
+     "status": "accepted"
+    },
+    "R10": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 400,
+      "payee_contains": "INTEREST PAID"
+     },
+     "status": "accepted"
+    },
+    "R11": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 6000,
+      "payee_contains": "EFTPOS TERMINAL RENTAL"
+     },
+     "status": "accepted"
+    },
+    "R12": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 9000,
+      "payee_contains": "STRIPE FEES"
+     },
+     "status": "accepted"
+    },
+    "R13": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 800,
+      "payee_contains": "ACCOUNT KEEPING FEE"
+     },
+     "status": "accepted"
+    },
+    "R14": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "CARD FEE CHARGED"
+     },
+     "status": "accepted"
+    },
+    "R15": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 500,
+      "payee_contains": "ONLINE BANKING FEE"
+     },
+     "status": "accepted"
+    },
+    "R16": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 250,
+      "payee_contains": "BONUS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R17": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2000,
+      "payee_contains": "SERVICE CHARGE"
+     },
+     "status": "accepted"
+    },
+    "R18": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3500,
+      "payee_contains": "GATEWAY FEE"
+     },
+     "status": "accepted"
+    },
+    "R19": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "TELEGRAPHIC TRANSFER FEE"
+     },
+     "status": "accepted"
+    },
+    "R20": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 300,
+      "payee_contains": "CHEQUE FEE"
+     },
+     "status": "accepted"
+    },
+    "R21": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 150,
+      "payee_contains": "INTEREST ADJUSTMENT"
+     },
+     "status": "accepted"
+    },
+    "R22": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 7500,
+      "payee_contains": "SQUARE PROCESSING FEE"
+     },
+     "status": "accepted"
+    },
+    "R23": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 200,
+      "payee_contains": "PAPER STATEMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R24": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 4000,
+      "payee_contains": "WINDCAVE FEE"
+     },
+     "status": "accepted"
+    },
+    "R25": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 500,
+      "payee_contains": "TD INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R26": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1800,
+      "payee_contains": "FOREIGN CURRENCY FEE"
+     },
+     "status": "accepted"
+    },
+    "R27": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 600,
+      "payee_contains": "POLI PAYMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R28": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "BANK CHARGES ADJ"
+     },
+     "status": "accepted"
+    },
+    "R29": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 450,
+      "payee_contains": "SAVINGS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R30": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "SECURE CARD FEE"
+     },
+     "status": "accepted"
+    },
+    "R31": {
+     "reason": "payee pattern 'PAYMENT' is too short or too generic",
+     "rule": null,
+     "status": "refused_by_validator"
+    },
+    "R32": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R33": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R34": {
+     "reason": "one sentence",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 10000,
+      "payee_contains": "UNARRANGED OVERDRAFT FEE"
+     },
+     "status": "accepted"
+    },
+    "R35": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R36": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R37": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R38": {
+     "reason": "refuse",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R39": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R40": {
+     "reason": "one sentence",
+     "rule": null,
+     "status": "refused_by_model"
+    }
+   },
+   "summary": {
+    "compiled_exactly": 28,
+    "falsely_refused": [
+     "R04",
+     "R06"
+    ],
+    "invalid_replies": 0,
+    "refused_by_model": 10,
+    "refused_by_validator": 1,
+    "should_accept": 30,
+    "should_refuse": 10,
+    "unsafe_rules_accepted": [
+     "R34"
+    ],
+    "wrong_rules_accepted": []
+   }
+  }
+ ],
+ "sentences": 40
+}
