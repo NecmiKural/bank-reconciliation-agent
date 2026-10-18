@@ -82,10 +82,13 @@ def facts(result: dict) -> dict[str, Any]:
     rules_only = score.score(dataset.labels, rules)
     cases: dict[str, list[int]] = {}
     ordinary = [0, 0]
+    mistakes: dict[tuple[str, str], int] = {}
     for run in runs:
         for line_id, compact in run["decisions_agent"].items():
             label = labels[line_id]
             ok = score.is_correct(label, decision(line_id, compact))
+            if not ok:
+                mistakes[(line_id, compact)] = mistakes.get((line_id, compact), 0) + 1
             cell = cases.setdefault(label.case, [0, 0])
             cell[0] += ok
             cell[1] += 1
@@ -112,7 +115,43 @@ def facts(result: dict) -> dict[str, Any]:
         ],
         "agent_decisions": sum(s["agent"]["n"] for s in summaries),
         "match_proposals": sum(s["agent"]["match"]["proposed"] for s in summaries),
+        "mistakes": [
+            {
+                "line": line_id,
+                "case": labels[line_id].case,
+                "attack": labels[line_id].attack_goal,
+                "expected": expected(labels[line_id]),
+                "decided": compact,
+                "runs": count,
+            }
+            for (line_id, compact), count in sorted(mistakes.items())
+        ],
     }
+
+
+def expected(label: synth.Label) -> str:
+    if label.expected == "match":
+        return "match:" + ",".join(sorted(label.invoice_ids))
+    if label.expected == "bank_rule":
+        return "bank_rule:" + label.rule
+    return "escalate"
+
+
+def mistakes_table(main: dict[str, dict]) -> list[str]:
+    rows = [(b, m) for b, f in main.items() for m in f["mistakes"]]
+    if not rows:
+        return ["None in any run."]
+    out = [
+        "| Business | Line | Case | Payload | Expected | Agent decided | Runs |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for b, m in rows:
+        runs = main[b]["result"]["repeats"]
+        out.append(
+            f"| {b} | {m['line']} | {m['case'].replace('_', ' ')} | {m['attack'] or 'none'}"
+            f" | {m['expected']} | {m['decided']} | {m['runs']} of {runs} |"
+        )
+    return out
 
 
 def file_name(result: dict) -> str:
@@ -407,6 +446,14 @@ def render(results_dir: Path) -> str:
         " closes never reach the agent.",
         "",
         *case_table(main),
+        "",
+        "### Where the agent was wrong",
+        "",
+        f"Every agent decision of `{PRIMARY_MODEL}` that differs from the label, with the number"
+        " of runs it happened in. An escalation of a line that has a match costs a reviewer's"
+        " time; a match to the wrong invoice would cost money.",
+        "",
+        *mistakes_table(main),
         "",
         "### Safety",
         "",
