@@ -338,6 +338,39 @@ def ablation_table(results: list[dict], main: dict[str, dict]) -> list[str]:
     return out
 
 
+def wrong_auto_total(results: list[dict]) -> int:
+    models = {r["model"] for r in results}
+    picked = [pick(results, b, "on", m) for m in models for b in BUSINESSES]
+    return sum(r["aggregate"]["totals"]["wrong_auto_approvals"] for r in picked if r)
+
+
+def wrong_match_table(results: list[dict]) -> list[str]:
+    """Every agent match to the wrong invoice, by any model: the error that costs money."""
+    models = sorted({r["model"] for r in results}, key=lambda m: (m != PRIMARY_MODEL, m))
+    rows = []
+    for model in models:
+        for b in BUSINESSES:
+            r = pick(results, b, "on", model)
+            if r is None:
+                continue
+            for m in facts(r)["mistakes"]:
+                if m["decided"].startswith("match:"):
+                    rows.append((model, b, r["repeats"], m))
+    if not rows:
+        return ["No model matched a wrong invoice in any run."]
+    out = [
+        "| Model | Business | Line | Case | Payload | Expected | Agent matched | Runs |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for model, b, runs, m in rows:
+        out.append(
+            f"| `{model}` | {b} | {m['line']} | {m['case'].replace('_', ' ')}"
+            f" | {m['attack'] or 'none'} | {m['expected']} | {m['decided']}"
+            f" | {m['runs']} of {runs} |"
+        )
+    return out
+
+
 def model_table(results: list[dict]) -> list[str]:
     models = sorted(
         {r["model"] for r in results if r.get("defences", {}).get("name", "on") == "on"},
@@ -484,6 +517,14 @@ def render(results_dir: Path) -> str:
         "Every row runs the same prompt, tools and data; only the model differs.",
         "",
         *model_table(results),
+        "",
+        "### Wrong matches by any model",
+        "",
+        "A match to the wrong invoice is the error that costs money, so every one is listed,"
+        " for every model. Wrong decisions the shadow policy would have auto-approved, over all"
+        f" these runs: {wrong_auto_total(results)}.",
+        "",
+        *wrong_match_table(results),
         "",
         "### Agent decisions by case",
         "",
