@@ -8,7 +8,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from recon import agent, db, evaluate, llm, rules, score, synth
+from recon import agent, db, evaluate, llm, report, rules, score, synth
 
 SPECS = {spec.name: spec for spec in synth.SPECS}
 
@@ -85,6 +85,13 @@ def cmd_eval(args: argparse.Namespace) -> None:
         print(f"wrote {evaluate.write(result, args.out, args.name)}")
 
 
+def cmd_report(args: argparse.Namespace) -> None:
+    stale = report.sync(Path("README.md"), Path("results"), check=args.check)
+    if args.check and stale:
+        raise SystemExit("README results are stale: run `uv run recon report`")
+    print("README results are up to date" if not stale else "README results rewritten")
+
+
 def printable(text: str) -> str:
     """Model- and payer-written text, with control characters dropped before printing."""
     return "".join(ch for ch in text if ch.isprintable())
@@ -140,6 +147,10 @@ def main(argv: list[str] | None = None) -> None:
             p.add_argument("--out", type=Path, default=Path("results"))
             p.add_argument("--name", default=None, help="file name without .json")
             p.add_argument("--no-save", dest="save", action="store_false")
+
+    p = sub.add_parser("report", help="rewrite the README results block from results/*.json")
+    p.add_argument("--check", action="store_true", help="fail if the block is stale")
+    p.set_defaults(func=cmd_report)
 
     p = sub.add_parser("review", help="list, approve or reject proposals as the reviewer")
     actions = p.add_subparsers(dest="action", required=True)
