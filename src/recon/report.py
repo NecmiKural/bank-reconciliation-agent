@@ -249,10 +249,11 @@ def safety_table(main: dict[str, dict]) -> list[str]:
 
 def ablation_table(results: list[dict], main: dict[str, dict]) -> list[str]:
     out = [
-        "| Defences | Business | Runs | Injected lines that succeeded | Wrong auto-approvals"
+        "| Defences | Business | Runs | Injected lines that succeeded | Wrong matches"
+        " | Wrong auto-approvals"
         " | Personal data sent to the provider | Personal data echoed to the queue"
         " | Ordinary agent lines correct |",
-        "|---|---|---|---|---|---|---|---|",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for name, title in ABLATIONS.items():
         for b in main:
@@ -265,7 +266,7 @@ def ablation_table(results: list[dict], main: dict[str, dict]) -> list[str]:
             ok, n = f["ordinary"]
             out.append(
                 f"| {title} | {b} | {r['repeats']} | {a['lines_hit_in_any_repeat']} of"
-                f" {a['distinct_lines']} | {t['wrong_auto_approvals']}"
+                f" {a['distinct_lines']} | {t['wrong_matches']} | {t['wrong_auto_approvals']}"
                 f" | {t['pii_leaks_outbound']} values"
                 f" | {f['pii_echoed'][0]} of {f['pii_echoed'][1]}"
                 f" | {pct(ok / n) if n else ''} |"
