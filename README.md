@@ -94,6 +94,17 @@ Each cell is recall at 5 and mean reciprocal rank of the labelled invoices among
 | A | renamed (stress set) | 0.944 and 0.932 | 0.912 and 0.903 | 0.944 and 0.932 | 0.944 and 0.932 |
 | B | as the bank wrote it | 0.935 and 0.907 | 0.935 and 0.905 | 0.935 and 0.907 | 0.935 and 0.907 |
 | B | renamed (stress set) | 0.935 and 0.907 | 0.912 and 0.880 | 0.930 and 0.905 | 0.935 and 0.907 |
+
+### Plain-English bank rules
+
+An owner writes a rule in a sentence; the model drafts JSON and code decides whether it becomes a rule. The eval set has 40 sentences written for it: 30 rules and 10 that must be refused (customer names, approvals, contradictions, an out-of-envelope limit, an injection). A bad rule is a wrong rule accepted or a must-refuse sentence accepted; its bound counts distinct sentences.
+
+| Model | Runs | Rules compiled exactly | Falsely refused | Bad rules (distinct sentences, 95% upper bound) | Refused by the validator | Invalid replies |
+|---|---|---|---|---|---|---|
+| `deepseek-flash` | 3 | 90 of 90 | 0 | 0 of 40 (8.8%) | 7 | 0 |
+| `deepseek-v4-pro` | 3 | 88 of 90 | 1 | 2 of 40 (16.5%) | 5 | 0 |
+
+Counts are over all runs. Commit `2cda874`.
 <!-- results:end -->
 
 ## How it works
@@ -114,6 +125,8 @@ bank line ──► rules pass ──► closed: exact amount, one candidate, pa
 - **Tools and verifier** ([tools.py](src/recon/tools.py)). Strict JSON schemas. Sums, differences and the fee tolerance are computed in code, so the model only chooses. A proposal may cite only invoices that the search returned for that line, must name a payer whose name is similar to the bank line's payee (trigram similarity of at least 0.3) unless the reference is that invoice number, must add up, and a part payment must be named in the remittance text.
 - **Shadow policy** ([policy.py](src/recon/policy.py)). Auto-approves only the boring case: one invoice, the exact amount, at most NZ$1,000, a payer whose earlier match a reviewer confirmed (in the evaluation, an earlier match the labels mark correct), payer text that does not read like an instruction. Owner bank rules auto-approve inside a sign and size envelope. In shadow mode it records verdicts and posts nothing.
 - **Review** ([db.py](src/recon/db.py)). A reviewer approves or rejects each proposal the policy routes to review; in shadow mode the ones it would auto-approve are recorded but neither posted nor listed. Every decision writes an audit row; allocations carry amounts, and a part payment leaves its invoice open.
+- **MCP server** ([mcp_server.py](src/recon/mcp_server.py)). `recon mcp` serves four read-only tools over stdio (list and read bank lines, search candidates, find combinations) to any MCP client. They reuse the agent's toolbox and role, so an outside assistant gets the same computed relations and fenced, redacted payer text, and no way to write.
+- **Plain-English bank rules** ([rule_compiler.py](src/recon/rule_compiler.py)). An owner writes a rule in a sentence; the model drafts JSON and code decides whether it becomes a rule: known account, the direction that account allows, inside the policy envelope, specific enough, and matching no customer in the ledger. Amounts are written by the model as the owner gave them and turned into cents by code.
 - **Postgres with least privilege** ([schema.sql](src/recon/schema.sql)). The agent's queries run under a role that can read the ledger and insert proposals, nothing else, and cannot read the evaluation labels. The process connects as the owner and switches to that role per transaction, which guards against bugs, not against code that runs its own SQL; a deployment would give the agent a login that is a member of that role only. A trigger rejects updates, deletes and truncation of the audit table, even from the owner connection. It does not stop the owner dropping the trigger, and `recon load`, `run` and `eval` recreate every schema because the data is disposable.
 
 ### Why a hand-rolled loop
@@ -147,6 +160,7 @@ The safety table measures these controls on the full runs. The ablation switches
 - **The keyword screen does not generalise.** See business B's column of the safety table. The pre-approval payloads also sit on lines the policy would never auto-approve, so the data cannot show the screen failing; it is covered by unit tests only.
 - **A redirect to a similarly named payer is not measured.** Every redirect target in the data belongs to a payer with a clearly different name, and the verifier's payer check is a name-similarity threshold.
 - **The auto-approval simulation assumes a perfect reviewer.** A payer counts as seen after an earlier match the labels mark correct.
+- **The rule validator checks safety, not intent.** It keeps a compiled rule inside its envelope and away from customers, but it cannot tell that a rule differs from what the owner meant: the larger model once wrote "under $3" as 2.99 and twice capped a rule the owner wanted unlimited instead of refusing it. A compiled rule should be shown to the owner before it is used, and nothing here applies one automatically. The 40 eval sentences were written for this project, not collected from owners.
 - **Small counts give wide bounds.** A zero out of a few dozen lines is reported with its upper bound for that reason.
 - **Two hosted models from one provider so far.** The larger one escalated more lines and cost more without being more accurate here; a local model row is next.
 - **Replay tests the harness, not the model.** The CI gate replays recorded model output; it proves the code still makes the same decisions from the same answers. Live quality comes only from the dated results files.
@@ -172,6 +186,8 @@ make baseline    # the rules pass alone, on both businesses
 make eval        # live, three repeats per business; writes results/*.json
 uv run recon report   # rewrite the results block above from results/*.json
 uv run --env-file .env recon retrieval   # the candidate search ablation (embeddings only)
+uv run --env-file .env recon rules-compile "Book MONTHLY A/C FEE to bank fees, max \$10."
+uv run --env-file .env recon rules-eval  # the 40-sentence rule compiler eval
 ```
 
 A run leaves its proposals in the review queue. The policy runs in shadow mode: it records what it would auto-approve and posts nothing. A person reviews the rest:
@@ -180,6 +196,13 @@ A run leaves its proposals in the review queue. The policy runs in shadow mode: 
 uv run recon review list --run <run id>
 uv run recon review approve <proposal id> --note "checked remittance"
 uv run recon review reject <proposal id> --note "unknown payer"
+```
+
+To use the ledger tools from Claude Code, load a business and register the server:
+
+```bash
+uv run recon load --business A
+claude mcp add recon -- uv run --directory "$PWD" recon mcp
 ```
 
 ## Repository layout
@@ -198,10 +221,13 @@ src/recon/
   policy.py         the shadow auto-approval policy
   evaluate.py       end-to-end runs, metrics and results files
   retrieval.py      the candidate search ablation: trigram, full text, pgvector, RRF
+  mcp_server.py     the read-only MCP server
+  rule_compiler.py  plain-English bank rules to validated rules, and their eval
   gate.py           the CI gate for a replayed run
   report.py         the README results block
   cli.py            the `recon` command
-tests/              unit, database, gate and README tests; cassettes/ holds the CI slice
+tests/              unit, database, gate, MCP and README tests; cassettes/ holds the CI slice
+evals/              the 40 plain-English rule sentences and what each should compile to
 scripts/            record_demo.py renders docs/demo.svg from the replayed slice
 Dockerfile          the recon command in a small non-root image, built and run in CI
 results/            dated results files, one per business, model and setting
@@ -216,7 +242,7 @@ The rules the coding agents work under are committed in [AGENTS.md](AGENTS.md). 
 
 ## Tech
 
-Python 3.13 · uv · PostgreSQL 17 · pg_trgm · pgvector · psycopg 3 · OpenAI-compatible APIs (DeepSeek, Gemini embeddings, Ollama) · pytest · ruff · GitHub Actions · Docker Compose
+Python 3.13 · uv · PostgreSQL 17 · pg_trgm · pgvector · psycopg 3 · OpenAI-compatible APIs (DeepSeek, Gemini embeddings, Ollama) · MCP Python SDK · pydantic · pytest · ruff · GitHub Actions · Docker Compose
 
 ---
 *Personal portfolio project, MIT licensed.*
