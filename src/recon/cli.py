@@ -8,7 +8,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from recon import db, evaluate, llm, rules, score, synth
+from recon import agent, db, evaluate, llm, rules, score, synth
 
 SPECS = {spec.name: spec for spec in synth.SPECS}
 
@@ -45,7 +45,8 @@ def cmd_run(args: argparse.Namespace) -> None:
     model = llm.LLM(llm.MODELS[args.model], args.mode, None if args.mode == "live" else cassette)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     run_id = f"{args.business}-{args.model}-{stamp}"
-    run = evaluate.run_once(ds, model, run_id, args.limit, args.workers)
+    defences = agent.DEFENCES[args.defences]
+    run = evaluate.run_once(ds, model, run_id, args.limit, args.workers, defences=defences)
     labels = {label.line_id: label for label in ds.labels}
     for line in ds.lines:
         result = run.agent_results.get(line.id)
@@ -75,6 +76,7 @@ def cmd_eval(args: argparse.Namespace) -> None:
         None if args.mode == "live" else cassette,
         args.limit,
         args.workers,
+        defences_name=args.defences,
     )
     print(json.dumps(result["aggregate"], indent=2))
     if not result["valid"]:
@@ -131,6 +133,7 @@ def main(argv: list[str] | None = None) -> None:
         p.add_argument("--cassette", type=Path, default=None)
         p.add_argument("--limit", type=int, default=None, help="only the first N open lines")
         p.add_argument("--workers", type=int, default=8)
+        p.add_argument("--defences", choices=sorted(agent.DEFENCES), default="on")
         p.set_defaults(func=func)
         if name == "eval":
             p.add_argument("--repeats", type=int, default=3)

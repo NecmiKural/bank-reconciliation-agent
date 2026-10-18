@@ -133,8 +133,9 @@ def names(line: BankLine, invoice_id: str) -> bool:
 
 
 class Toolbox:
-    def __init__(self, line: BankLine, search: Search) -> None:
+    def __init__(self, line: BankLine, search: Search, payer_check: bool = True) -> None:
         self.line = line
+        self.payer_check = payer_check
         self._search = search
         self.seen: dict[str, Row] = {}
 
@@ -208,7 +209,7 @@ class Toolbox:
         if len({r.contact_id for r in rows}) > 1:
             return "all invoices in one match must belong to the same payer"
         in_reference = any(self.line.reference == r.invoice for r in rows)
-        if rows[0].payee_similarity < PAYER_THRESHOLD and not in_reference:
+        if self.payer_check and rows[0].payee_similarity < PAYER_THRESHOLD and not in_reference:
             return "the invoice belongs to a different payer than the one on the bank line"
         line = self.line.amount_cents
         if line <= 0:

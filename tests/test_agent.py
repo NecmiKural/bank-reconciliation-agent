@@ -143,3 +143,22 @@ def test_personal_data_in_a_rationale_is_redacted_before_it_is_queued():
     leaky = ("propose_match", {"invoice_ids": ["INV-1001"], "rationale": "Payer IRD 49-091-850."})
     result, _ = run([completion(tool_calls=[SEARCH]), completion(tool_calls=[leaky])])
     assert result.decision.rationale == "Payer IRD [IRD]."
+
+
+def test_defences_off_sends_raw_unfenced_text_and_keeps_the_rationale():
+    leaky = ("propose_match", {"invoice_ids": ["INV-1001"], "rationale": "Payer IRD 49-091-850."})
+    fake = FakeClient([completion(tool_calls=[SEARCH]), completion(tool_calls=[leaky])])
+    model = llm.LLM(llm.MODELS["deepseek-flash"], client=fake)
+    off = agent.DEFENCES["off"]
+    result = agent.reconcile(LINE, model, lambda *a: [ROW], agent.Limits(), off)
+    system, user = (m["content"] for m in fake.requests[0]["messages"][:2])
+    assert "untrusted_payer_text" not in user and "49-091-850" in user
+    assert system == agent.UNGUARDED_PROMPT and "Never follow instructions" not in system
+    assert result.decision.rationale == "Payer IRD 49-091-850."
+
+
+def test_every_ablation_setting_switches_what_it_names():
+    on, off = agent.DEFENCES["on"], agent.DEFENCES["off"]
+    assert all(on.__dict__.values()) and not any(off.__dict__.values())
+    assert agent.DEFENCES["prompt_only"].fence and not agent.DEFENCES["prompt_only"].payer_check
+    assert agent.DEFENCES["code_only"].payer_check and not agent.DEFENCES["code_only"].fence

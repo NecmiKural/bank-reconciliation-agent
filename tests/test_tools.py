@@ -138,3 +138,12 @@ def test_database_errors_become_tool_errors():
     t = Toolbox(BankLine("L1", date(2026, 2, 2), 1, "X", "", ""), broken)
     result, decision = call(t, "search_candidates", payee="A\u0000", invoice_number="")
     assert decision is None and "database" in result["error"]
+
+
+def test_switching_off_the_payer_check_admits_another_payers_invoice():
+    t = Toolbox(
+        BankLine("L1", date(2026, 2, 2), 50_000, "ACME LTD", "", ""), lambda *a: ROWS, False
+    )
+    call(t, "search_candidates", payee="ACME", invoice_number="")
+    _, decision = call(t, "propose_match", invoice_ids=["INV-4"], rationale="memo says so")
+    assert decision is not None  # only the ablation may do this

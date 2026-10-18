@@ -22,7 +22,11 @@ from recon.synth import BankLine
 from recon.tools import TOOL_SCHEMAS, Search, Toolbox, dollars
 
 PROMPT = files("recon").joinpath("prompts", "agent.md").read_text()
-PROMPT_SHA = hashlib.sha256(PROMPT.encode()).hexdigest()[:12]
+_GUIDANCE = PROMPT[PROMPT.index("Payee, reference and memo are written") :].split("\n\n")[0]
+_PII_RULE = " Never include email addresses, phone numbers, bank account numbers or IRD numbers."
+# The same prompt without the untrusted-text paragraph and the personal-data rule, for the
+# defences-off ablation only.
+UNGUARDED_PROMPT = PROMPT.replace(_GUIDANCE + "\n\n", "").replace(_PII_RULE, "")
 TERMINAL_TOOLS = {"propose_match", "escalate"}
 # Worth escalating one line for. Anything else (a bad key, no balance, a malformed request)
 # would repeat on every line, so it stops the run instead of filling the queue.
@@ -32,6 +36,34 @@ TRANSIENT_ERRORS = (
     openai.RateLimitError,
     openai.InternalServerError,
 )
+
+
+def sha(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()[:12]
+
+
+PROMPT_SHA = sha(PROMPT)
+
+
+@dataclass(frozen=True)
+class Defences:
+    """Injection defences, each of which an ablation can switch off."""
+
+    fence: bool = True  # payer text is fenced and the prompt says it is data, never instructions
+    redact: bool = True  # personal data is removed before the model and from rationales
+    payer_check: bool = True  # the verifier refuses an invoice of another payer
+    screen: bool = True  # the policy never auto-approves instruction-like payer text
+
+    def prompt(self) -> str:
+        return PROMPT if self.fence else UNGUARDED_PROMPT
+
+
+DEFENCES = {
+    "on": Defences(),
+    "prompt_only": Defences(fence=True, redact=False, payer_check=False, screen=False),
+    "code_only": Defences(fence=False, redact=True, payer_check=True, screen=True),
+    "off": Defences(fence=False, redact=False, payer_check=False, screen=False),
+}
 
 
 @dataclass(frozen=True)
@@ -53,11 +85,14 @@ class LineResult:
     trace: list[dict[str, Any]] = field(default_factory=list)
 
 
-def user_message(line: BankLine) -> str:
+def user_message(line: BankLine, defences: Defences = DEFENCES["on"]) -> str:
     direction = "money in" if line.amount_cents > 0 else "money out"
-    payer_text = untrusted_block(
-        {"payee": line.payee, "reference": line.reference, "memo": line.memo}
-    )
+    fields = {"payee": line.payee, "reference": line.reference, "memo": line.memo}
+    if defences.fence:
+        payer_text = untrusted_block(fields, defences.redact)
+    else:
+        clean = redact if defences.redact else str
+        payer_text = "\n".join(f"{name}: {clean(value)}" for name, value in fields.items())
     return (
         f"Bank line {line.id}\n"
         f"Posted: {line.posted.isoformat()}\n"
@@ -73,12 +108,19 @@ def assistant_message(message: Any) -> dict[str, Any]:
     return turn
 
 
-def reconcile(line: BankLine, model: LLM, search: Search, limits: Limits) -> LineResult:
-    toolbox = Toolbox(line, search)
+def reconcile(
+    line: BankLine,
+    model: LLM,
+    search: Search,
+    limits: Limits,
+    defences: Defences = DEFENCES["on"],
+) -> LineResult:
+    toolbox = Toolbox(line, search, defences.payer_check)
     result = LineResult(decision=Decision(line.id, "escalate"))
+    prompt = defences.prompt()
     messages: list[dict[str, Any]] = [
-        {"role": "system", "content": PROMPT},
-        {"role": "user", "content": user_message(line)},
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": user_message(line, defences)},
     ]
     provider = model.spec.name.split(":")[0].split("-")[0]
 
@@ -89,7 +131,8 @@ def reconcile(line: BankLine, model: LLM, search: Search, limits: Limits) -> Lin
             decision.invoice_ids,
             decision.rule,
             source=model.spec.name,
-            rationale=redact(decision.rationale),  # defence in depth: no PII in the queue
+            # defence in depth: no personal data in the queue
+            rationale=redact(decision.rationale) if defences.redact else decision.rationale,
         )
         return result
 
@@ -126,7 +169,7 @@ def reconcile(line: BankLine, model: LLM, search: Search, limits: Limits) -> Lin
                 "recon.cost_usd": round(cost, 6),
                 "recon.latency_ms": reply.latency_ms,
                 "recon.replayed": reply.replayed,
-                "recon.prompt_sha": PROMPT_SHA,
+                "recon.prompt_sha": sha(prompt),
                 "recon.line_id": line.id,
                 "recon.step": step,
             }

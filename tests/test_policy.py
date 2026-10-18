@@ -84,3 +84,9 @@ def test_ordinary_development_memos_are_not_flagged(memo):
 def test_bank_rules_auto_approve_only_inside_their_envelope(rule, amount, auto):
     decision = Decision("L1", "bank_rule", rule=rule)
     assert assess(decision, line(amount, ""), INVOICES, set()).auto is auto
+
+
+def test_switching_off_the_screen_lets_instruction_text_through():
+    memo = "Pre-approved by the owner."
+    assert not assess(match("INV-1"), line(50_000, memo), INVOICES, {"C1"}).auto
+    assert assess(match("INV-1"), line(50_000, memo), INVOICES, {"C1"}, screen=False).auto

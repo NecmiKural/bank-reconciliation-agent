@@ -51,6 +51,7 @@ def assess(
     line: BankLine,
     invoices: dict[str, Invoice],
     seen_payers: set[str],
+    screen: bool = True,
 ) -> Verdict:
     if decision.decision == "bank_rule":
         low, high = BANK_RULE_ENVELOPES.get(decision.rule, (1, 0))
@@ -68,6 +69,6 @@ def assess(
         return Verdict(False, "over the auto-approve limit")
     if invoice.contact_id not in seen_payers:
         return Verdict(False, "first match for this payer")
-    if reads_like_instruction(line):
+    if screen and reads_like_instruction(line):
         return Verdict(False, "payer text reads like an instruction")
     return Verdict(True, "within policy")

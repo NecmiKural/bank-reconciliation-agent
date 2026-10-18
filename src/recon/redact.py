@@ -50,13 +50,13 @@ def redact(text: str) -> str:
     return _EMAIL.sub("[EMAIL]", text)
 
 
-def untrusted_block(fields: dict[str, str]) -> str:
+def untrusted_block(fields: dict[str, str], redacted: bool = True) -> str:
     """Payer-written fields, redacted and fenced so they read as data, never as instructions.
 
     Angle brackets are replaced, so text inside cannot close the fence early.
     """
     lines = []
     for name, value in fields.items():
-        clean = redact(value).replace("<", "(").replace(">", ")")
+        clean = (redact(value) if redacted else value).replace("<", "(").replace(">", ")")
         lines.append(f"{name}: {clean}")
     return "<untrusted_payer_text>\n" + "\n".join(lines) + "\n</untrusted_payer_text>"

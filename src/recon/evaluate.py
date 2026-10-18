@@ -50,7 +50,11 @@ def planted_pii(dataset: synth.Dataset) -> set[str]:
 
 
 def reconcile_all(
-    lines: list[synth.BankLine], model: llm.LLM, workers: int, database_url: str | None
+    lines: list[synth.BankLine],
+    model: llm.LLM,
+    workers: int,
+    database_url: str | None,
+    defences: agent.Defences = agent.DEFENCES["on"],
 ) -> dict[str, agent.LineResult]:
     """One conversation per line, run in parallel; each worker thread has its own connection."""
     local = threading.local()
@@ -68,7 +72,7 @@ def reconcile_all(
     pool = ThreadPoolExecutor(max_workers=workers)
     try:
         futures = {
-            line.id: pool.submit(agent.reconcile, line, model, search, agent.Limits())
+            line.id: pool.submit(agent.reconcile, line, model, search, agent.Limits(), defences)
             for line in lines
         }
         return {line_id: future.result() for line_id, future in futures.items()}
@@ -78,7 +82,9 @@ def reconcile_all(
             conn.close()
 
 
-def shadow_policy(dataset: synth.Dataset, decisions: dict[str, Decision]) -> dict[str, Verdict]:
+def shadow_policy(
+    dataset: synth.Dataset, decisions: dict[str, Decision], screen: bool = True
+) -> dict[str, Verdict]:
     """Assess decisions in posting order.
 
     A payer counts as seen only after an earlier correct match, which models a reviewer who
@@ -92,7 +98,7 @@ def shadow_policy(dataset: synth.Dataset, decisions: dict[str, Decision]) -> dic
         decision = decisions.get(line.id)
         if decision is None:
             continue
-        verdicts[line.id] = policy.assess(decision, line, invoices, seen)
+        verdicts[line.id] = policy.assess(decision, line, invoices, seen, screen)
         if decision.decision == "match" and score.is_correct(labels[line.id], decision):
             seen.add(invoices[decision.invoice_ids[0]].contact_id)
     return verdicts
@@ -106,6 +112,7 @@ def run_once(
     workers: int = 8,
     database_url: str | None = None,
     trace_dir: Path | None = Path("runs"),
+    defences: agent.Defences = agent.DEFENCES["on"],
 ) -> Run:
     planted = planted_pii(dataset)
     leaks: set[str] = set()
@@ -123,9 +130,9 @@ def run_once(
         db.reset(conn, dataset)
         decisions = rules.run(conn)
         open_lines = [line for line in dataset.lines if line.id not in decisions][:limit]
-        results = reconcile_all(open_lines, model, workers, database_url)
+        results = reconcile_all(open_lines, model, workers, database_url, defences)
         decisions.update({line_id: r.decision for line_id, r in results.items()})
-        verdicts = shadow_policy(dataset, decisions)
+        verdicts = shadow_policy(dataset, decisions, defences.screen)
         db.queue(conn, run_id, ((decisions[i], verdicts[i]) for i in verdicts))
     tracer = Tracer(trace_dir / run_id / "trace.jsonl" if trace_dir else None)
     for result in results.values():
@@ -371,16 +378,18 @@ def evaluate(
     workers: int = 8,
     database_url: str | None = None,
     trace_dir: Path | None = Path("runs"),
+    defences_name: str = "on",
 ) -> dict[str, Any]:
     spec = next(s for s in synth.SPECS if s.name == business)
     dataset = synth.generate(spec)
     model_spec = llm.MODELS[model_name]
+    defences = agent.DEFENCES[defences_name]
     stamp = datetime.now(UTC)
     runs = []
     for k in range(repeats):
         model = llm.LLM(model_spec, mode, cassette, salt="" if k == 0 else f"repeat-{k}")
-        run_id = f"{business}-{model_name}-{stamp:%Y%m%dT%H%M%SZ}-r{k}"
-        run = run_once(dataset, model, run_id, limit, workers, database_url, trace_dir)
+        run_id = f"{business}-{model_name}-{defences_name}-{stamp:%Y%m%dT%H%M%SZ}-r{k}"
+        run = run_once(dataset, model, run_id, limit, workers, database_url, trace_dir, defences)
         summary, details = summarize(dataset, run)
         runs.append(
             {
@@ -402,7 +411,8 @@ def evaluate(
         "api_model": model_spec.api_model,
         "model_settings": model_spec.extra_body,
         "prices_checked": llm.PRICES_CHECKED,
-        "prompt_sha": agent.PROMPT_SHA,
+        "prompt_sha": agent.sha(defences.prompt()),
+        "defences": {"name": defences_name, **defences.__dict__},
         "mode": mode,
         "limit": limit,
         "limits": agent.Limits().__dict__,
@@ -418,6 +428,8 @@ def evaluate(
 def write(result: dict[str, Any], out_dir: Path, name: str | None = None) -> Path:
     if name is None:
         parts = [result["generated_at"][:10], result["business"], result["model"], result["mode"]]
+        if result["defences"]["name"] != "on":
+            parts.append(f"defences_{result['defences']['name']}")
         if result["limit"] is not None:
             parts.append(f"limit{result['limit']}")
         name = "-".join(parts).replace(":", "_")
