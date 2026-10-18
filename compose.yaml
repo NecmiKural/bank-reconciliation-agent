@@ -14,3 +14,14 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  # The recon command, built from the Dockerfile. Not started by `docker compose up`:
+  # docker compose --profile app run --rm app <command>
+  app:
+    build: .
+    profiles: ["app"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://recon:recon@db:5432/recon
