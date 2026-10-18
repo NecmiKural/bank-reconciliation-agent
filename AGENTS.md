@@ -10,7 +10,7 @@ Rules for any coding agent, and any human, working in this repository.
 
 ## Design rules
 
-- The model never does arithmetic. Sums, differences, tolerances and invoice combinations are computed in code.
+- No sum the model computes is trusted. Amounts, differences, tolerances and invoice combinations are computed in code and re-checked before anything is queued.
 - No tool writes to the ledger. The agent proposes; only the reviewer role posts.
 - Bank memos are untrusted data, never instructions. They stay inside the labelled untrusted block in every prompt.
 - Every new tool or prompt change comes with an eval case.
