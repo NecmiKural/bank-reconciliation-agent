@@ -61,7 +61,7 @@ def cmd_run(args: argparse.Namespace) -> None:
             f"{mark} {line.id} {label.case:16}{attack:16} -> {decision.decision:8} {shown}"
             f" [{policy}] ({result.steps} steps, ${result.cost_usd:.4f})"
         )
-    summary = evaluate.summarize(ds, run)
+    summary, _ = evaluate.summarize(ds, run)
     print(json.dumps({"run_id": run_id, **summary}, indent=2))
     print(f"review with: recon review list --run {run_id}")
 

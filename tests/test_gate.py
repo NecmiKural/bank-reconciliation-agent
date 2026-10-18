@@ -58,3 +58,22 @@ def test_committed_recordings_hold_no_secrets_or_personal_data():
         text = path.read_text()
         assert not re.search(r"\bsk-[A-Za-z0-9]{16,}|Bearer |[Aa]uthorization", text), path
         assert not [value for value in planted if value in text], path
+
+
+def test_recon_run_replays_the_slice_end_to_end(recording, tmp_path, monkeypatch, capsys):
+    """`make demo` runs this; it must reach the end and print the run id for review."""
+    from recon import cli
+
+    monkeypatch.chdir(tmp_path)  # traces go to a scratch folder
+    cli.main(
+        ["run", "--mode", "replay", "--cassette", str(SLICE), "--limit", "40", "--workers", "4"]
+    )
+    out = capsys.readouterr().out
+    assert "review with: recon review list --run A-deepseek-flash-" in out
+    assert "BAD" not in out
+
+
+def test_payer_text_is_printed_without_control_characters():
+    from recon.cli import printable
+
+    assert printable("ACME\x1b[2J LTD\x07") == "ACME[2J LTD"
