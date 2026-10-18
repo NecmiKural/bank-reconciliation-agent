@@ -58,3 +58,20 @@ def test_local_model_reads_its_url_from_the_environment(monkeypatch):
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://10.0.0.5:11434/v1")
     assert llm.MODELS["ollama:gpt-oss:20b"].url() == "http://10.0.0.5:11434/v1"
     assert llm.cost_usd(llm.MODELS["ollama:gpt-oss:20b"], llm.Usage(10, 0, 10)) == 0
+
+
+def test_salt_keeps_repeats_apart_and_on_request_sees_every_call(tmp_path):
+    cassette = tmp_path / "c.jsonl"
+    seen = []
+    script = [completion(content="one", finish="stop"), completion(content="two", finish="stop")]
+    fake = FakeClient(script)
+    for salt in ("", "repeat-1"):
+        llm.LLM(llm.MODELS["deepseek-flash"], "record", cassette, fake, salt, seen.append).chat(
+            MESSAGES, tools=[]
+        )
+    assert len(cassette.read_text().splitlines()) == 2 and len(seen) == 2
+    for salt, text in (("", "one"), ("repeat-1", "two")):
+        reply = llm.LLM(llm.MODELS["deepseek-flash"], "replay", cassette, salt=salt).chat(
+            MESSAGES, tools=[]
+        )
+        assert reply.response.choices[0].message.content == text

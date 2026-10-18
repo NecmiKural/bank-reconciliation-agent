@@ -12,7 +12,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -135,7 +137,11 @@ class LLM:
         mode: str = "live",
         cassette: Path | None = None,
         client: Any = None,
+        salt: str = "",
+        on_request: Callable[[list[dict]], None] | None = None,
     ) -> None:
+        """salt separates repeated runs of the same requests in one cassette; on_request sees
+        every outgoing message list, in replay too, so leak scans cover recorded runs."""
         if mode not in ("live", "record", "replay"):
             raise ValueError(f"unknown mode {mode!r}")
         if mode != "live" and cassette is None:
@@ -148,6 +154,9 @@ class LLM:
                     entry = json.loads(line)
                     self.recorded[entry["key"]] = entry
         self._client = client
+        self.salt = salt
+        self.on_request = on_request
+        self._lock = threading.Lock()
 
     @property
     def client(self) -> Any:
@@ -168,7 +177,9 @@ class LLM:
             "tools": tools,
             "extra_body": self.spec.extra_body,
         }
-        key = request_key(body)
+        if self.on_request is not None:
+            self.on_request(messages)
+        key = request_key({**body, "salt": self.salt} if self.salt else body)
         if self.mode == "replay":
             entry = self.recorded.get(key)
             if entry is None:
@@ -186,7 +197,8 @@ class LLM:
                 "latency_ms": latency_ms,
                 "response": response.model_dump(mode="json"),
             }
-            self.cassette.parent.mkdir(parents=True, exist_ok=True)
-            with self.cassette.open("a") as f:
-                f.write(json.dumps(entry, sort_keys=True) + "\n")
+            with self._lock:
+                self.cassette.parent.mkdir(parents=True, exist_ok=True)
+                with self.cassette.open("a") as f:
+                    f.write(json.dumps(entry, sort_keys=True) + "\n")
         return Reply(response, latency_ms, replayed=False)
