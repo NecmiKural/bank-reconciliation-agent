@@ -350,7 +350,8 @@ def retrieval_section(results_dir: Path) -> list[str]:
     if not found:
         return []
     r = max(found, key=lambda x: x["generated_at"])
-    examples = "; ".join(f"{a} as {b}" for a, b in r["businesses"]["A"]["renamed_examples"][:3])
+    pairs = {a: b for a, b in r["businesses"]["A"]["renamed_examples"]}  # one example per payer
+    examples = "; ".join(f"{a} as {b}" for a, b in list(pairs.items())[:3])
     n = r["businesses"]["A"]["as_written"]["trigram"]["n"]
     return [
         "",
