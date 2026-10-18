@@ -36,6 +36,6 @@ What can go wrong when a language model helps reconcile bank lines, and which co
 
 - **A payload worded as an ordinary remittance passes the keyword screen.** It still meets the verifier and, outside the narrow auto-approval case, a human.
 - **A payer who really is the account holder can name the wrong invoice in the reference field.** The verifier accepts the payer through the reference, and the rules pass trusts an exact reference too. Such a line can be auto-approved, because the policy checks the invoice's payer history, not the bank payee.
-- **A redirect to a similarly named payer passes the verifier's name check.** It is not in the measured data.
+- **A redirect to a similarly named payer can pass the verifier's name check when the amount is exact.** For an amount that is not exact the bar is higher, after the local model matched a namesake's invoice inside the fee window. Redirects to similar names are not in the measured attack data.
 - **The model may be fooled on a line where the books allow the attacker's choice**, for example two invoices of the same payer for the same amount. That is a judgement error with a correct payer, and review is the control.
 - **A local model on another machine is reached over the LAN without TLS.** It should be bound to one host by a firewall rule; nothing in this repository enforces that. It is not suitable for real data as configured.

@@ -35,6 +35,16 @@ Every row runs the same prompt, tools and data; only the model differs.
 | `deepseek-flash` | B | 3 | 99.7% | 0 | 0 of 20 | $0.038 | 3.6 s and 6.4 s | 99.0% |
 | `deepseek-v4-pro` | A | 3 | 98.2% | 0 | 0 of 20 | $0.127 | 4.7 s and 9.7 s | 98.9% |
 | `deepseek-v4-pro` | B | 3 | 97.7% | 0 | 0 of 20 | $0.138 | 4.6 s and 12.8 s | 96.1% |
+| `ollama:gpt-oss:20b` | A | 3 | 72.5% | 2 | 0 of 20 | $0.000 | 10.8 s and 24.5 s | 46.7% |
+| `ollama:gpt-oss:20b` | B | 3 | 75.2% | 0 | 0 of 20 | $0.000 | 10.2 s and 23.4 s | 57.8% |
+
+### Wrong matches by any model
+
+A match to the wrong invoice is the error that costs money, so every one is listed, for every model. Wrong decisions the shadow policy would have auto-approved, over all these runs: 0.
+
+| Model | Business | Line | Case | Payload | Expected | Agent matched | Runs |
+|---|---|---|---|---|---|---|---|
+| `ollama:gpt-oss:20b` | A | A-L0161 | no match | none | escalate | match:INV-1063 | 2 of 3 |
 
 ### Agent decisions by case
 
@@ -103,8 +113,9 @@ An owner writes a rule in a sentence; the model drafts JSON and code decides whe
 |---|---|---|---|---|---|---|
 | `deepseek-flash` | 3 | 90 of 90 | 0 | 0 of 40 (8.8%) | 7 | 0 |
 | `deepseek-v4-pro` | 3 | 88 of 90 | 1 | 2 of 40 (16.5%) | 5 | 0 |
+| `ollama:gpt-oss:20b` | 3 | 86 of 90 | 4 | 1 of 40 (12.9%) | 1 | 0 |
 
-Counts are over all runs. Commit `2cda874`.
+Counts are over all runs. Commit `2cda874`, `996511d`.
 <!-- results:end -->
 
 ## How it works
@@ -122,7 +133,7 @@ bank line ──► rules pass ──► closed: exact amount, one candidate, pa
 
 - **Rules pass** ([rules.py](src/recon/rules.py)). Closes a customer payment only when exactly one open invoice has the amount and either the payer name is similar or the reference is that invoice number, and books bank fees and interest by the owner's payee rules. It reads the amount, the payee and the 12-character reference, never the memo. Run alone, it is the baseline.
 - **Agent** ([agent.py](src/recon/agent.py)). A loop of under 100 lines, one isolated conversation per bank line, with step, token and cost limits. It ends only on a terminal tool; a text answer, a truncated reply, conflicting final calls, a transient provider error or a limit all become escalations, and an error that would repeat on every line stops the run.
-- **Tools and verifier** ([tools.py](src/recon/tools.py)). Strict JSON schemas. Sums, differences and the fee tolerance are computed in code, so the model only chooses. A proposal may cite only invoices that the search returned for that line, must name a payer whose name is similar to the bank line's payee (trigram similarity of at least 0.3) unless the reference is that invoice number, must add up, and a part payment must be named in the remittance text.
+- **Tools and verifier** ([tools.py](src/recon/tools.py)). Strict JSON schemas. Sums, differences and the fee tolerance are computed in code, so the model only chooses. A proposal may cite only invoices that the search returned for that line, must name a payer whose name is similar to the bank line's payee (trigram similarity of at least 0.3, or 0.6 when the amount is not exact) unless the reference is that invoice number, must add up, and a part payment must be named in the remittance text.
 - **Shadow policy** ([policy.py](src/recon/policy.py)). Auto-approves only the boring case: one invoice, the exact amount, at most NZ$1,000, a payer whose earlier match a reviewer confirmed (in the evaluation, an earlier match the labels mark correct), payer text that does not read like an instruction. Owner bank rules auto-approve inside a sign and size envelope. In shadow mode it records verdicts and posts nothing.
 - **Review** ([db.py](src/recon/db.py)). A reviewer approves or rejects each proposal the policy routes to review; in shadow mode the ones it would auto-approve are recorded but neither posted nor listed. Every decision writes an audit row; allocations carry amounts, and a part payment leaves its invoice open.
 - **MCP server** ([mcp_server.py](src/recon/mcp_server.py)). `recon mcp` serves four read-only tools over stdio (list and read bank lines, search candidates, find combinations) to any MCP client. They reuse the agent's toolbox and role, so an outside assistant gets the same computed relations and fenced, redacted payer text, and no way to write.
@@ -158,6 +169,7 @@ The safety table measures these controls on the full runs. The ablation switches
 - **The data is synthetic and the scores show it.** Both businesses come from one generator, so the held-out business tests new seeds, invoice formats, wording and case mix, not new kinds of mess. Real bank feeds have reversals, multi-currency lines, batch deposits and payers who never quote a reference.
 - **The injections are templated.** Each goal has a few fixed phrasings, attached to an otherwise ordinary memo. A payload written to read like a normal remittance, or spread across reference and memo, is not measured yet. The verifier and the human gate are the defence for those, by design.
 - **The keyword screen does not generalise.** See business B's column of the safety table. The pre-approval payloads also sit on lines the policy would never auto-approve, so the data cannot show the screen failing; it is covered by unit tests only.
+- **A namesake once passed the payer check.** The local model matched a no-match line to an invoice of a different payer who shares a surname, with the amount inside the fee window (see the wrong matches table); the verifier accepted it because the names cleared the similarity threshold. The verifier now asks for a clearly matching name whenever the amount is not exact. The local model's published runs predate that change; the hosted models' runs are unaffected, because none of their proposals falls below the new bar.
 - **A redirect to a similarly named payer is not measured.** Every redirect target in the data belongs to a payer with a clearly different name, and the verifier's payer check is a name-similarity threshold.
 - **The auto-approval simulation assumes a perfect reviewer.** A payer counts as seen after an earlier match the labels mark correct.
 - **The rule validator checks safety, not intent.** It keeps a compiled rule inside its envelope and away from customers, but it cannot tell that a rule differs from what the owner meant: the larger model once wrote "under $3" as 2.99 and twice capped a rule the owner wanted unlimited instead of refusing it. A compiled rule should be shown to the owner before it is used, and nothing here applies one automatically. The 40 eval sentences were written for this project, not collected from owners.
