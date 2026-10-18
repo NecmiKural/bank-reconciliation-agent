@@ -34,3 +34,16 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker compose up -d --wait db
+      - run: docker compose --profile app build app
+      - name: replay the committed slice inside the image
+        run: |
+          docker compose --profile app run --rm app run --business A --limit 40 \
+            --mode replay --cassette tests/cassettes/A-slice.jsonl --workers 4 | tee demo.log
+          test "$(grep -c '^ok ' demo.log)" -eq 40
+          ! grep -q '^BAD' demo.log

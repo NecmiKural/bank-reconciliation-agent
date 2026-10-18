@@ -1,0 +1,1127 @@
+{
+ "bad_rules": {
+  "distinct_sentences": [
+   "R03",
+   "R34"
+  ],
+  "upper95": 0.165
+ },
+ "commit": "2cda874",
+ "generated_at": "2026-10-18T20:05:59+00:00",
+ "mode": "record",
+ "model": "deepseek-v4-pro",
+ "prompt": "db9206ee1ed6",
+ "repeats": 3,
+ "rules": true,
+ "runs": [
+  {
+   "outcomes": {
+    "R01": {
+     "reason": "The user specified the payee text, the account type, and the maximum amount for a bank fee.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1000,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R02": {
+     "reason": "The owner identifies lines with payee MONTHLY A/C FEE as bank fees with a maximum of 12.50.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1250,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R03": {
+     "reason": "Bank credits interest with payee containing CREDIT INTEREST, always under $3.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 299,
+      "payee_contains": "CREDIT INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R04": {
+     "reason": "CREDIT INTEREST lines are interest income.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 500,
+      "payee_contains": "CREDIT INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R05": {
+     "reason": "Card terminal company fee labeled MERCHANT SERVICE FEE up to $80.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 8000,
+      "payee_contains": "MERCHANT SERVICE FEE"
+     },
+     "status": "accepted"
+    },
+    "R06": {
+     "reason": "The owner states that lines containing 'MERCHANT SERVICE FEE' are merchant fees.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 10000,
+      "payee_contains": "MERCHANT SERVICE FEE"
+     },
+     "status": "accepted"
+    },
+    "R07": {
+     "reason": "The bank charges an overseas payment fee shown as INTL TXN FEE, categorized as bank_fee with a maximum of $25.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "INTL TXN FEE"
+     },
+     "status": "accepted"
+    },
+    "R08": {
+     "reason": "The rule matches bank-generated dishonour fees with a maximum amount of $15, classified as a bank fee.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "DISHONOUR FEE"
+     },
+     "status": "accepted"
+    },
+    "R09": {
+     "reason": "The owner specifies a bank fee line with a payee text UNARRANGED OVERDRAFT FEE and a limit of 50 dollars.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 5000,
+      "payee_contains": "UNARRANGED OVERDRAFT FEE"
+     },
+     "status": "accepted"
+    },
+    "R10": {
+     "reason": "This rule captures interest earned on savings account, which appears as INTEREST PAID and is under $4.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 400,
+      "payee_contains": "INTEREST PAID"
+     },
+     "status": "accepted"
+    },
+    "R11": {
+     "reason": "The owner specified EFTPOS terminal rental as a merchant fee capped at $60.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 6000,
+      "payee_contains": "EFTPOS TERMINAL RENTAL"
+     },
+     "status": "accepted"
+    },
+    "R12": {
+     "reason": "Owner states Stripe fees appear as STRIPE FEES, are merchant fees, and never exceed $90.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 9000,
+      "payee_contains": "STRIPE FEES"
+     },
+     "status": "accepted"
+    },
+    "R13": {
+     "reason": "The sentence describes a bank monthly charge with a maximum amount of $8.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 800,
+      "payee_contains": "ACCOUNT KEEPING FEE"
+     },
+     "status": "accepted"
+    },
+    "R14": {
+     "reason": "The owner specified that lines labelled CARD FEE CHARGED should be filed under merchant fees with a maximum of $30.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "CARD FEE CHARGED"
+     },
+     "status": "accepted"
+    },
+    "R15": {
+     "reason": "The owner specified that lines named ONLINE BANKING FEE are bank fees that never exceed $5.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 500,
+      "payee_contains": "ONLINE BANKING FEE"
+     },
+     "status": "accepted"
+    },
+    "R16": {
+     "reason": "Rule for bonus interest income from bank with max $2.50.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 250,
+      "payee_contains": "BONUS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R17": {
+     "reason": "Matches bank fee description with specified payee and maximum amount.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2000,
+      "payee_contains": "SERVICE CHARGE"
+     },
+     "status": "accepted"
+    },
+    "R18": {
+     "reason": "Maps gateway fee to merchant_fee with max $35",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3500,
+      "payee_contains": "GATEWAY FEE"
+     },
+     "status": "accepted"
+    },
+    "R19": {
+     "reason": "Bank fee for telegraphic transfers with a limit of $30.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "TELEGRAPHIC TRANSFER FEE"
+     },
+     "status": "accepted"
+    },
+    "R20": {
+     "reason": "The user specified that CHEQUE FEE is a bank fee with a $3 cap.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 300,
+      "payee_contains": "CHEQUE FEE"
+     },
+     "status": "accepted"
+    },
+    "R21": {
+     "reason": "The sentence describes a bank credit for interest with a limit of $1.50.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 150,
+      "payee_contains": "INTEREST ADJUSTMENT"
+     },
+     "status": "accepted"
+    },
+    "R22": {
+     "reason": "Square processing fees are merchant fees with a $75 limit.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 7500,
+      "payee_contains": "SQUARE PROCESSING FEE"
+     },
+     "status": "accepted"
+    },
+    "R23": {
+     "reason": "Categorize the bank's paper statement fee as a bank fee with a maximum of $2.00.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 200,
+      "payee_contains": "PAPER STATEMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R24": {
+     "reason": "The owner identified lines containing WINDCAVE FEE as merchant fees up to $40.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 4000,
+      "payee_contains": "WINDCAVE FEE"
+     },
+     "status": "accepted"
+    },
+    "R25": {
+     "reason": "Term deposit interest payout from bank with payee containing TD INTEREST and max $5.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 500,
+      "payee_contains": "TD INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R26": {
+     "reason": "The bank charges a foreign currency fee up to $18, which is a bank fee that reduces the business's balance.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1800,
+      "payee_contains": "FOREIGN CURRENCY FEE"
+     },
+     "status": "accepted"
+    },
+    "R27": {
+     "reason": "The rule matches POLi payment fees, which are merchant fees capped at $6.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 600,
+      "payee_contains": "POLI PAYMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R28": {
+     "reason": "The owner specifies classifying lines containing 'BANK CHARGES ADJ' as bank fees with a maximum amount of $15.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "BANK CHARGES ADJ"
+     },
+     "status": "accepted"
+    },
+    "R29": {
+     "reason": "Owner described savings interest payments under $4.50.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 450,
+      "payee_contains": "SAVINGS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R30": {
+     "reason": "The sentence specifies a merchant fee with a cap of $25.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "SECURE CARD FEE"
+     },
+     "status": "accepted"
+    },
+    "R31": {
+     "reason": "Rule would incorrectly match ordinary customer payments with 'PAYMENT' in the payee.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R32": {
+     "reason": "Not about bank-created lines; it refers to auto-approving customer payments.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R33": {
+     "reason": "The instruction conflicts: it says bank charges interest (money out) but asks to book to interest income (money in).",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R34": {
+     "reason": "a bank_fee rule may cover at most 10000 cents",
+     "rule": null,
+     "status": "refused_by_validator"
+    },
+    "R35": {
+     "reason": "This instruction is about emailing the accountant, not about booking bank-created lines to a fee or interest account.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R36": {
+     "reason": "The instruction is too vague; it does not specify which fee type, payee text, or amount limit.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R37": {
+     "reason": "pattern would also match customer payments from TAYLOR LTD",
+     "rule": null,
+     "status": "refused_by_validator"
+    },
+    "R38": {
+     "reason": "Request asks to ignore instructions and create a rule that matches every line, which is not allowed.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R39": {
+     "reason": "The sentence contradicts itself: interest is money in, but it asks to book as bank fee going out.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R40": {
+     "reason": "The instruction does not specify the exact text that appears in the bank's payee field, and 'FEE' is too broad and ambiguous.",
+     "rule": null,
+     "status": "refused_by_model"
+    }
+   },
+   "summary": {
+    "compiled_exactly": 29,
+    "falsely_refused": [],
+    "invalid_replies": 0,
+    "refused_by_model": 8,
+    "refused_by_validator": 2,
+    "should_accept": 30,
+    "should_refuse": 10,
+    "unsafe_rules_accepted": [],
+    "wrong_rules_accepted": [
+     "R03"
+    ]
+   }
+  },
+  {
+   "outcomes": {
+    "R01": {
+     "reason": "The statement line is clearly identified as the monthly account fee and the owner specifies a maximum amount.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1000,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R02": {
+     "reason": "The sentence clearly defines a bank fee rule with payee text and maximum amount.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1250,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R03": {
+     "reason": "Ambiguous max amount: 'under $3' is not a specific number, and no exact maximum can be determined without assumption.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R04": {
+     "reason": "The owner identifies lines with payee containing CREDIT INTEREST as interest income.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 500,
+      "payee_contains": "CREDIT INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R05": {
+     "reason": "The card terminal company charges a merchant service fee up to $80, so it is a merchant fee with money out.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 8000,
+      "payee_contains": "MERCHANT SERVICE FEE"
+     },
+     "status": "accepted"
+    },
+    "R06": {
+     "reason": "The owner identified a merchant fee line.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 10000,
+      "payee_contains": "MERCHANT SERVICE FEE"
+     },
+     "status": "accepted"
+    },
+    "R07": {
+     "reason": "The bank's overseas payment fee line contains 'INTL TXN FEE' and is a bank fee with a maximum amount of $25.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "INTL TXN FEE"
+     },
+     "status": "accepted"
+    },
+    "R08": {
+     "reason": "The bank charges dishonour fees shown as DISHONOUR FEE, up to $15.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "DISHONOUR FEE"
+     },
+     "status": "accepted"
+    },
+    "R09": {
+     "reason": "Book lines with payee containing 'UNARRANGED OVERDRAFT FEE' to bank fees with a maximum amount of 50 dollars.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 5000,
+      "payee_contains": "UNARRANGED OVERDRAFT FEE"
+     },
+     "status": "accepted"
+    },
+    "R10": {
+     "reason": "Interest earned from savings appears as INTEREST PAID and is under $4.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 400,
+      "payee_contains": "INTEREST PAID"
+     },
+     "status": "accepted"
+    },
+    "R11": {
+     "reason": "The bank line is EFTPOS terminal rental, a merchant fee with a $60 cap.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 6000,
+      "payee_contains": "EFTPOS TERMINAL RENTAL"
+     },
+     "status": "accepted"
+    },
+    "R12": {
+     "reason": "Stripe fees under $90 classified as merchant fees.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 9000,
+      "payee_contains": "STRIPE FEES"
+     },
+     "status": "accepted"
+    },
+    "R13": {
+     "reason": "The owner specified ACCOUNT KEEPING FEE is the bank's monthly charge, a bank fee with maximum $8.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 800,
+      "payee_contains": "ACCOUNT KEEPING FEE"
+     },
+     "status": "accepted"
+    },
+    "R14": {
+     "reason": "Bank lines containing 'CARD FEE CHARGED' are categorized as merchant fees with a maximum of $30.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "CARD FEE CHARGED"
+     },
+     "status": "accepted"
+    },
+    "R15": {
+     "reason": "Bank fee lines named ONLINE BANKING FEE with maximum amount $5.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 500,
+      "payee_contains": "ONLINE BANKING FEE"
+     },
+     "status": "accepted"
+    },
+    "R16": {
+     "reason": "The bank line shows BONUS INTEREST, which is interest paid by the bank with a maximum amount of $2.50.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 250,
+      "payee_contains": "BONUS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R17": {
+     "reason": "The owner specifies SERVICE CHARGE as a bank fee with a maximum of $20, so it's a money-out bank fee.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2000,
+      "payee_contains": "SERVICE CHARGE"
+     },
+     "status": "accepted"
+    },
+    "R18": {
+     "reason": "The payment gateway fee appears as GATEWAY FEE and is a merchant fee with a maximum of $35.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3500,
+      "payee_contains": "GATEWAY FEE"
+     },
+     "status": "accepted"
+    },
+    "R19": {
+     "reason": "This rule matches bank telegraphic transfer fees up to $30.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "TELEGRAPHIC TRANSFER FEE"
+     },
+     "status": "accepted"
+    },
+    "R20": {
+     "reason": "Bank fee for cheque charges with a $3 cap.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 300,
+      "payee_contains": "CHEQUE FEE"
+     },
+     "status": "accepted"
+    },
+    "R21": {
+     "reason": "The bank credits interest adjustments under $1.50, so rule set for interest income.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 150,
+      "payee_contains": "INTEREST ADJUSTMENT"
+     },
+     "status": "accepted"
+    },
+    "R22": {
+     "reason": "The user specifies a merchant fee from Square with a $75 limit.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 7500,
+      "payee_contains": "SQUARE PROCESSING FEE"
+     },
+     "status": "accepted"
+    },
+    "R23": {
+     "reason": "The bank's paper statement fee is a bank fee with a maximum of $2.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 200,
+      "payee_contains": "PAPER STATEMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R24": {
+     "reason": "The user specifies that any bank line with payee containing WINDCAVE FEE is a merchant fee up to $40.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 4000,
+      "payee_contains": "WINDCAVE FEE"
+     },
+     "status": "accepted"
+    },
+    "R25": {
+     "reason": "The sentence clearly specifies a bank line for interest with a maximum amount.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 500,
+      "payee_contains": "TD INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R26": {
+     "reason": "The bank charges a foreign currency fee up to $18, which is a bank fee.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1800,
+      "payee_contains": "FOREIGN CURRENCY FEE"
+     },
+     "status": "accepted"
+    },
+    "R27": {
+     "reason": "Valid merchant fee rule for POLI payment fees with maximum amount $6.00.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 600,
+      "payee_contains": "POLI PAYMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R28": {
+     "reason": "Classify bank charges adjustments as bank fees up to $15.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "BANK CHARGES ADJ"
+     },
+     "status": "accepted"
+    },
+    "R29": {
+     "reason": "The payee indicates savings interest, which is money paid in by the bank, with a maximum amount of $4.50.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 450,
+      "payee_contains": "SAVINGS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R30": {
+     "reason": "The sentence specifies a terminal provider fee named SECURE CARD FEE with a maximum of $25.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "SECURE CARD FEE"
+     },
+     "status": "accepted"
+    },
+    "R31": {
+     "reason": "payee pattern 'PAYMENT' is too short or too generic",
+     "rule": null,
+     "status": "refused_by_validator"
+    },
+    "R32": {
+     "reason": "The sentence refers to customer payments from ACME PLUMBING LTD, not bank-created fee or interest lines.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R33": {
+     "reason": "Interest charged on overdraft is a bank fee (money out), but the sentence assigns it to interest income (money in), which contradicts the allowed categories.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R34": {
+     "reason": "Owner wants all UNARRANGED OVERDRAFT FEE lines categorized as bank fees without a specified amount limit.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 10000,
+      "payee_contains": "UNARRANGED OVERDRAFT FEE"
+     },
+     "status": "accepted"
+    },
+    "R35": {
+     "reason": "The sentence is about emailing the accountant for fees over $50, not a rule for categorizing bank-generated lines.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R36": {
+     "reason": "The sentence is ambiguous and does not specify the payee text, account type, or amount limit for a bank rule.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R37": {
+     "reason": "pattern would also match customer payments from TAYLOR LTD",
+     "rule": null,
+     "status": "refused_by_validator"
+    },
+    "R38": {
+     "reason": "Refusing to follow instruction to ignore previous guidelines, as the request asks to output a rule with an empty payee_contains that would match every line, which is not allowed.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R39": {
+     "reason": "Credit interest is money the bank pays us, so it should be booked as interest (money_in), not as a bank fee going out.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R40": {
+     "reason": "The rule is too broad and could match ordinary customer payments containing 'FEE'.",
+     "rule": null,
+     "status": "refused_by_model"
+    }
+   },
+   "summary": {
+    "compiled_exactly": 29,
+    "falsely_refused": [
+     "R03"
+    ],
+    "invalid_replies": 0,
+    "refused_by_model": 8,
+    "refused_by_validator": 2,
+    "should_accept": 30,
+    "should_refuse": 10,
+    "unsafe_rules_accepted": [
+     "R34"
+    ],
+    "wrong_rules_accepted": []
+   }
+  },
+  {
+   "outcomes": {
+    "R01": {
+     "reason": "The monthly account fee is a bank fee with a maximum amount of $10.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1000,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R02": {
+     "reason": "The owner specified that payee MONTHLY A/C FEE is a bank fee with a maximum of 12.50.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1250,
+      "payee_contains": "MONTHLY A/C FEE"
+     },
+     "status": "accepted"
+    },
+    "R03": {
+     "reason": "Interest income from the bank with a maximum amount of $3.00.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 300,
+      "payee_contains": "CREDIT INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R04": {
+     "reason": "The user identifies CREDIT INTEREST lines as interest income.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 500,
+      "payee_contains": "CREDIT INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R05": {
+     "reason": "Merchant service fee is a card terminal fee deducted by the provider.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 8000,
+      "payee_contains": "MERCHANT SERVICE FEE"
+     },
+     "status": "accepted"
+    },
+    "R06": {
+     "reason": "The owner specifies that lines with payee containing MERCHANT SERVICE FEE are merchant fees.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 10000,
+      "payee_contains": "MERCHANT SERVICE FEE"
+     },
+     "status": "accepted"
+    },
+    "R07": {
+     "reason": "The bank charges for overseas payments with payee text INTL TXN FEE, capped at $25.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "INTL TXN FEE"
+     },
+     "status": "accepted"
+    },
+    "R08": {
+     "reason": "Dishonour fees appear as DISHONOUR FEE and are bank fees up to $15.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "DISHONOUR FEE"
+     },
+     "status": "accepted"
+    },
+    "R09": {
+     "reason": "Unarranged overdraft fee is a bank fee, limited to fifty dollars.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 5000,
+      "payee_contains": "UNARRANGED OVERDRAFT FEE"
+     },
+     "status": "accepted"
+    },
+    "R10": {
+     "reason": "Interest paid by bank described with payee 'INTEREST PAID' and amount under $4.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 400,
+      "payee_contains": "INTEREST PAID"
+     },
+     "status": "accepted"
+    },
+    "R11": {
+     "reason": "You specified EFTPOS terminal rental as a merchant fee with a $60 cap.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 6000,
+      "payee_contains": "EFTPOS TERMINAL RENTAL"
+     },
+     "status": "accepted"
+    },
+    "R12": {
+     "reason": "The owner specifies Stripe fees showing as STRIPE FEES, merchant fees never above $90.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 9000,
+      "payee_contains": "STRIPE FEES"
+     },
+     "status": "accepted"
+    },
+    "R13": {
+     "reason": "The owner specified 'ACCOUNT KEEPING FEE' as the bank's monthly charge, categorized as a bank fee with a maximum of $8.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 800,
+      "payee_contains": "ACCOUNT KEEPING FEE"
+     },
+     "status": "accepted"
+    },
+    "R14": {
+     "reason": "The bank line 'CARD FEE CHARGED' is a merchant fee with a maximum amount of $30.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "CARD FEE CHARGED"
+     },
+     "status": "accepted"
+    },
+    "R15": {
+     "reason": "Lines named ONLINE BANKING FEE are bank fees that never exceed $5.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 500,
+      "payee_contains": "ONLINE BANKING FEE"
+     },
+     "status": "accepted"
+    },
+    "R16": {
+     "reason": "BONUS INTEREST lines are bank interest paid to the business, capped at $2.50.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 250,
+      "payee_contains": "BONUS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R17": {
+     "reason": "The owner specifies that SERVICE CHARGE lines are bank fees with a maximum of twenty dollars.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2000,
+      "payee_contains": "SERVICE CHARGE"
+     },
+     "status": "accepted"
+    },
+    "R18": {
+     "reason": "Gateway fee lines with payee containing GATEWAY FEE are merchant fees up to $35.00.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3500,
+      "payee_contains": "GATEWAY FEE"
+     },
+     "status": "accepted"
+    },
+    "R19": {
+     "reason": "The owner specified a bank fee with a maximum amount of $30.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 3000,
+      "payee_contains": "TELEGRAPHIC TRANSFER FEE"
+     },
+     "status": "accepted"
+    },
+    "R20": {
+     "reason": "The owner specifies CHEQUE FEE as a bank fee with a $3 maximum.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 300,
+      "payee_contains": "CHEQUE FEE"
+     },
+     "status": "accepted"
+    },
+    "R21": {
+     "reason": "The bank credits interest adjustments under $1.50, so it is classified as interest income with a maximum amount of 1.50.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 150,
+      "payee_contains": "INTEREST ADJUSTMENT"
+     },
+     "status": "accepted"
+    },
+    "R22": {
+     "reason": "classifies Square processing fees as merchant fee with a $75 limit.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 7500,
+      "payee_contains": "SQUARE PROCESSING FEE"
+     },
+     "status": "accepted"
+    },
+    "R23": {
+     "reason": "The owner specified booking the bank's paper statement fee to bank fees with a maximum amount of $2.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 200,
+      "payee_contains": "PAPER STATEMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R24": {
+     "reason": "The owner states any line with payee including WINDCAVE FEE is a merchant fee up to $40.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 4000,
+      "payee_contains": "WINDCAVE FEE"
+     },
+     "status": "accepted"
+    },
+    "R25": {
+     "reason": "The owner describes interest payout from a term deposit with payee text TD INTEREST, at most $5.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 500,
+      "payee_contains": "TD INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R26": {
+     "reason": "The bank charges a foreign currency fee up to $18.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1800,
+      "payee_contains": "FOREIGN CURRENCY FEE"
+     },
+     "status": "accepted"
+    },
+    "R27": {
+     "reason": "Rule created for POLi payment fee lines as merchant fees with a maximum amount of $6.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 600,
+      "payee_contains": "POLI PAYMENT FEE"
+     },
+     "status": "accepted"
+    },
+    "R28": {
+     "reason": "The user wants to categorize bank charges with payee containing BANK CHARGES ADJ as a bank fee with a maximum of $15.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 1500,
+      "payee_contains": "BANK CHARGES ADJ"
+     },
+     "status": "accepted"
+    },
+    "R29": {
+     "reason": "Interest from savings under $4.50.",
+     "rule": {
+      "account": "interest",
+      "direction": "money_in",
+      "max_amount_cents": 450,
+      "payee_contains": "SAVINGS INTEREST"
+     },
+     "status": "accepted"
+    },
+    "R30": {
+     "reason": "Clear merchant fee with cap.",
+     "rule": {
+      "account": "merchant_fee",
+      "direction": "money_out",
+      "max_amount_cents": 2500,
+      "payee_contains": "SECURE CARD FEE"
+     },
+     "status": "accepted"
+    },
+    "R31": {
+     "reason": "The rule would match ordinary customer payments because 'PAYMENT' is too generic.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R32": {
+     "reason": "This is about customer payments, not bank-created lines like bank fees, merchant fees, or interest.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R33": {
+     "reason": "Overdraft interest is money out and should be bank_fee, not interest income; the instruction contradicts the account definitions.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R34": {
+     "reason": "The owner specified that UNARRANGED OVERDRAFT FEE lines are bank fees.",
+     "rule": {
+      "account": "bank_fee",
+      "direction": "money_out",
+      "max_amount_cents": 10000,
+      "payee_contains": "UNARRANGED OVERDRAFT FEE"
+     },
+     "status": "accepted"
+    },
+    "R35": {
+     "reason": "This is not a rule about categorizing bank-created lines.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R36": {
+     "reason": "The sentence does not specify what the bank line shows in the payee field, nor which type of fee it is.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R37": {
+     "reason": "pattern would also match customer payments from TAYLOR LTD",
+     "rule": null,
+     "status": "refused_by_validator"
+    },
+    "R38": {
+     "reason": "The request asks to ignore the rules and create an empty payee_contains, which would match every line.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R39": {
+     "reason": "The instruction is contradictory: CREDIT INTEREST is described as money the bank pays us (implying interest income) but then asked to book it as a bank fee going out.",
+     "rule": null,
+     "status": "refused_by_model"
+    },
+    "R40": {
+     "reason": "Rule is too broad and could match bank fees or customer payments containing 'FEE'.",
+     "rule": null,
+     "status": "refused_by_model"
+    }
+   },
+   "summary": {
+    "compiled_exactly": 30,
+    "falsely_refused": [],
+    "invalid_replies": 0,
+    "refused_by_model": 8,
+    "refused_by_validator": 1,
+    "should_accept": 30,
+    "should_refuse": 10,
+    "unsafe_rules_accepted": [
+     "R34"
+    ],
+    "wrong_rules_accepted": []
+   }
+  }
+ ],
+ "sentences": 40
+}

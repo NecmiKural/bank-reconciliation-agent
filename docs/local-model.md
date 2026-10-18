@@ -72,13 +72,23 @@ uv run python -c "import json,glob; [print(f, (r:=json.load(open(f)))['valid'], 
 
 Each must say `True`, a commit without `-dirty`, and `0`.
 
-## 6. Hand back
+## 6. Rule compiler (optional, short)
 
-Commit only the two results files and push the branch. Do not push to `main`, and do not run `recon report` or edit `README.md`; the main checkout regenerates the README after merging.
+The plain-English rule compiler has its own 40-sentence eval. With the model still loaded:
+
+```powershell
+uv run --env-file .env recon rules-eval --model ollama:gpt-oss:20b --repeats 3 --mode record
+```
+
+It writes `results/<date>-rules-ollama_gpt-oss_20b-record.json`. Commit it with the other two.
+
+## 7. Hand back
+
+Commit only the results files and push the branch. Do not push to `main`, and do not run `recon report` or edit `README.md`; the main checkout regenerates the README after merging.
 
 ```powershell
 git add results/*ollama_gpt-oss_20b*
-git commit -m "chore: record live results for the local gpt-oss:20b on A and B"
+git commit -m "chore: record live results for the local gpt-oss:20b"
 git push -u origin results/ollama-gpt-oss-20b
 ```
 

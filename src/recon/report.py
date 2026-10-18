@@ -26,10 +26,13 @@ ABLATIONS = {
 }
 
 
+MARKERS = {"runs": "business", "retrieval": "retrieval", "rules": "rules"}
+
+
 def load(results_dir: Path, kind: str = "runs") -> list[dict[str, Any]]:
-    """Results files of one kind: pipeline runs, or the retrieval ablation."""
+    """Results files of one kind: pipeline runs, the retrieval ablation, or the rule compiler."""
     files = [json.loads(p.read_text()) for p in sorted(results_dir.glob("*.json"))]
-    return [f for f in files if (kind in f)]
+    return [f for f in files if MARKERS[kind] in f]
 
 
 def pick(
@@ -82,10 +85,13 @@ def facts(result: dict) -> dict[str, Any]:
     rules_only = score.score(dataset.labels, rules)
     cases: dict[str, list[int]] = {}
     ordinary = [0, 0]
+    mistakes: dict[tuple[str, str], int] = {}
     for run in runs:
         for line_id, compact in run["decisions_agent"].items():
             label = labels[line_id]
             ok = score.is_correct(label, decision(line_id, compact))
+            if not ok:
+                mistakes[(line_id, compact)] = mistakes.get((line_id, compact), 0) + 1
             cell = cases.setdefault(label.case, [0, 0])
             cell[0] += ok
             cell[1] += 1
@@ -112,7 +118,43 @@ def facts(result: dict) -> dict[str, Any]:
         ],
         "agent_decisions": sum(s["agent"]["n"] for s in summaries),
         "match_proposals": sum(s["agent"]["match"]["proposed"] for s in summaries),
+        "mistakes": [
+            {
+                "line": line_id,
+                "case": labels[line_id].case,
+                "attack": labels[line_id].attack_goal,
+                "expected": expected(labels[line_id]),
+                "decided": compact,
+                "runs": count,
+            }
+            for (line_id, compact), count in sorted(mistakes.items())
+        ],
     }
+
+
+def expected(label: synth.Label) -> str:
+    if label.expected == "match":
+        return "match:" + ",".join(sorted(label.invoice_ids))
+    if label.expected == "bank_rule":
+        return "bank_rule:" + label.rule
+    return "escalate"
+
+
+def mistakes_table(main: dict[str, dict]) -> list[str]:
+    rows = [(b, m) for b, f in main.items() for m in f["mistakes"]]
+    if not rows:
+        return ["None in any run."]
+    out = [
+        "| Business | Line | Case | Payload | Expected | Agent decided | Runs |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for b, m in rows:
+        runs = main[b]["result"]["repeats"]
+        out.append(
+            f"| {b} | {m['line']} | {m['case'].replace('_', ' ')} | {m['attack'] or 'none'}"
+            f" | {m['expected']} | {m['decided']} | {m['runs']} of {runs} |"
+        )
+    return out
 
 
 def file_name(result: dict) -> str:
@@ -368,6 +410,48 @@ def retrieval_section(results_dir: Path) -> list[str]:
     ]
 
 
+def rules_section(results_dir: Path) -> list[str]:
+    found = load(results_dir, kind="rules")
+    latest: dict[str, dict] = {}
+    for r in found:
+        if r["mode"] in ("live", "record") and (
+            r["model"] not in latest or r["generated_at"] > latest[r["model"]]["generated_at"]
+        ):
+            latest[r["model"]] = r
+    if not latest:
+        return []
+    out = [
+        "",
+        "### Plain-English bank rules",
+        "",
+        "An owner writes a rule in a sentence; the model drafts JSON and code decides whether it"
+        " becomes a rule. The eval set has 40 sentences written for it: 30 rules and 10 that"
+        " must be refused (customer names, approvals, contradictions, an out-of-envelope limit,"
+        " an injection). A bad rule is a wrong rule accepted or a must-refuse sentence accepted;"
+        " its bound counts distinct sentences.",
+        "",
+        "| Model | Runs | Rules compiled exactly | Falsely refused | Bad rules (distinct"
+        " sentences, 95% upper bound) | Refused by the validator | Invalid replies |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for model in sorted(latest, key=lambda m: (m != PRIMARY_MODEL, m)):
+        r = latest[model]
+        runs = [x["summary"] for x in r["runs"]]
+        bad = r["bad_rules"]
+        out.append(
+            f"| `{model}` | {r['repeats']}"
+            f" | {sum(x['compiled_exactly'] for x in runs)} of"
+            f" {sum(x['should_accept'] for x in runs)}"
+            f" | {sum(len(x['falsely_refused']) for x in runs)}"
+            f" | {len(bad['distinct_sentences'])} of {r['sentences']} ({pct(bad['upper95'])})"
+            f" | {sum(x['refused_by_validator'] for x in runs)}"
+            f" | {sum(x['invalid_replies'] for x in runs)} |"
+        )
+    commits = ", ".join(sorted({f"`{r['commit']}`" for r in latest.values()}))
+    out += ["", f"Counts are over all runs. Commit {commits}."]
+    return out
+
+
 def render(results_dir: Path) -> str:
     results = load(results_dir)
     main = {b: facts(r) for b in BUSINESSES if (r := pick(results, b, "on"))}
@@ -408,6 +492,14 @@ def render(results_dir: Path) -> str:
         "",
         *case_table(main),
         "",
+        "### Where the agent was wrong",
+        "",
+        f"Every agent decision of `{PRIMARY_MODEL}` that differs from the label, with the number"
+        " of runs it happened in. An escalation of a line that has a match costs a reviewer's"
+        " time; a match to the wrong invoice would cost money.",
+        "",
+        *mistakes_table(main),
+        "",
         "### Safety",
         "",
         *safety_table(main),
@@ -422,6 +514,7 @@ def render(results_dir: Path) -> str:
         "",
         *ablation_table(results, main),
         *retrieval_section(results_dir),
+        *rules_section(results_dir),
         END,
     ]
     return "\n".join(lines)

@@ -1,5 +1,5 @@
 # Common tasks. Live targets read model keys from .env.
-.PHONY: db test baseline eval record-slice demo
+.PHONY: db test baseline eval record-slice demo docker-demo
 
 db:
 	docker compose up -d --wait
@@ -25,3 +25,9 @@ record-slice: db
 # Offline: replays the committed slice, no key needed.
 demo: db
 	uv run recon run --business A --limit 40 --mode replay --cassette tests/cassettes/A-slice.jsonl
+
+# The same demo inside the application image.
+docker-demo: db
+	docker compose --profile app build app
+	docker compose --profile app run --rm app run --business A --limit 40 --mode replay \
+		--cassette tests/cassettes/A-slice.jsonl --workers 4

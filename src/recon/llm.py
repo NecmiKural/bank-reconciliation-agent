@@ -170,13 +170,17 @@ class LLM:
             self._client = OpenAI(base_url=self.spec.url(), api_key=key, timeout=120)
         return self._client
 
-    def chat(self, messages: list[dict], tools: list[dict]) -> Reply:
+    def chat(
+        self, messages: list[dict], tools: list[dict], response_format: dict | None = None
+    ) -> Reply:
         body = {
             "model": self.spec.api_model,
             "messages": messages,
             "tools": tools,
             "extra_body": self.spec.extra_body,
         }
+        if response_format is not None:  # added only when used, so older recordings still match
+            body["response_format"] = response_format
         if self.on_request is not None:
             self.on_request(messages)
         key = request_key({**body, "salt": self.salt} if self.salt else body)

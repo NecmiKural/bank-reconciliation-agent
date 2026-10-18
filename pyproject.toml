@@ -10,6 +10,7 @@ requires-python = ">=3.13"
 dependencies = [
     "faker>=40.43.0",
     "holidays>=0.106",
+    "mcp>=2.3,<3",
     "openai>=3.34.0",
     "psycopg[binary]>=3.3.6",
 ]
@@ -25,7 +26,11 @@ build-backend = "uv_build"
 module-name = "recon"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.11"]
+dev = [
+    "pytest>=8",
+    "rich>=15.0.0",
+    "ruff>=0.11",
+]
 
 [tool.ruff]
 line-length = 100

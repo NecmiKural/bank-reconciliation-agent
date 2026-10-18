@@ -1,0 +1,13 @@
+# Never send keys or local state into a build.
+.env
+.git
+.venv
+data
+runs
+cassettes
+results
+.context
+graphify-out
+**/__pycache__
+.pytest_cache
+.ruff_cache
