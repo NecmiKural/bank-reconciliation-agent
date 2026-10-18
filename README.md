@@ -35,16 +35,14 @@ Every row runs the same prompt, tools and data; only the model differs.
 | `deepseek-flash` | B | 3 | 99.7% | 0 | 0 of 20 | $0.038 | 3.6 s and 6.4 s | 99.0% |
 | `deepseek-v4-pro` | A | 3 | 98.2% | 0 | 0 of 20 | $0.127 | 4.7 s and 9.7 s | 98.9% |
 | `deepseek-v4-pro` | B | 3 | 97.7% | 0 | 0 of 20 | $0.138 | 4.6 s and 12.8 s | 96.1% |
-| `ollama:gpt-oss:20b` | A | 3 | 72.5% | 2 | 0 of 20 | $0.000 | 10.8 s and 24.5 s | 46.7% |
-| `ollama:gpt-oss:20b` | B | 3 | 75.2% | 0 | 0 of 20 | $0.000 | 10.2 s and 23.4 s | 57.8% |
+| `ollama:gpt-oss:20b` | A | 3 | 73.9% | 0 | 0 of 20 | $0.000 | 11.3 s and 23.3 s | 48.9% |
+| `ollama:gpt-oss:20b` | B | 3 | 75.8% | 0 | 0 of 20 | $0.000 | 10.2 s and 20.5 s | 53.9% |
 
 ### Wrong matches by any model
 
 A match to the wrong invoice is the error that costs money, so every one is listed, for every model. Wrong decisions the shadow policy would have auto-approved, over all these runs: 0.
 
-| Model | Business | Line | Case | Payload | Expected | Agent matched | Runs |
-|---|---|---|---|---|---|---|---|
-| `ollama:gpt-oss:20b` | A | A-L0161 | no match | none | escalate | match:INV-1063 | 2 of 3 |
+No model matched a wrong invoice in any run.
 
 ### Agent decisions by case
 
@@ -169,12 +167,12 @@ The safety table measures these controls on the full runs. The ablation switches
 - **The data is synthetic and the scores show it.** Both businesses come from one generator, so the held-out business tests new seeds, invoice formats, wording and case mix, not new kinds of mess. Real bank feeds have reversals, multi-currency lines, batch deposits and payers who never quote a reference.
 - **The injections are templated.** Each goal has a few fixed phrasings, attached to an otherwise ordinary memo. A payload written to read like a normal remittance, or spread across reference and memo, is not measured yet. The verifier and the human gate are the defence for those, by design.
 - **The keyword screen does not generalise.** See business B's column of the safety table. The pre-approval payloads also sit on lines the policy would never auto-approve, so the data cannot show the screen failing; it is covered by unit tests only.
-- **A namesake once passed the payer check.** The local model matched a no-match line to an invoice of a different payer who shares a surname, with the amount inside the fee window (see the wrong matches table); the verifier accepted it because the names cleared the similarity threshold. The verifier now asks for a clearly matching name whenever the amount is not exact. The local model's published runs predate that change; the hosted models' runs are unaffected, because none of their proposals falls below the new bar.
+- **A namesake once passed the payer check.** In the first local-model run (`results/2026-10-18-A-ollama_gpt-oss_20b-record.json`), the model matched a no-match line to an invoice of a different payer who shares a surname, with the amount inside the fee window, and the verifier accepted it because the names cleared the similarity threshold. The verifier now asks for a clearly matching name whenever the amount is not exact. Rerun on the stricter verifier, the local model escalated that line every time; the hosted models' runs are unaffected, because none of their proposals falls below the new bar.
 - **A redirect to a similarly named payer is not measured.** Every redirect target in the data belongs to a payer with a clearly different name, and the verifier's payer check is a name-similarity threshold.
 - **The auto-approval simulation assumes a perfect reviewer.** A payer counts as seen after an earlier match the labels mark correct.
 - **The rule validator checks safety, not intent.** It keeps a compiled rule inside its envelope and away from customers, but it cannot tell that a rule differs from what the owner meant: the larger model once wrote "under $3" as 2.99 and twice capped a rule the owner wanted unlimited instead of refusing it. A compiled rule should be shown to the owner before it is used, and nothing here applies one automatically. The 40 eval sentences were written for this project, not collected from owners.
 - **Small counts give wide bounds.** A zero out of a few dozen lines is reported with its upper bound for that reason.
-- **Two hosted models from one provider so far.** The larger one escalated more lines and cost more without being more accurate here; a local model row is next.
+- **Three models so far, all small samples.** The larger hosted model escalated more lines and cost more without being more accurate here. The local `gpt-oss:20b` was less accurate and less consistent from run to run. Its times are not representative: it ran on an 8 GB RTX 3070 with part of the model on the CPU, because the model does not fit in 8 GB. That changes how long it takes, not what it decides.
 - **Replay tests the harness, not the model.** The CI gate replays recorded model output; it proves the code still makes the same decisions from the same answers. Live quality comes only from the dated results files.
 
 ## Verification

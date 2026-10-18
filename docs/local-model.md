@@ -2,7 +2,7 @@
 
 How to measure `ollama:gpt-oss:20b` on a machine with its own GPU. Everything runs on that one machine: the model, Postgres and the evaluation. Nothing is exposed to the network. The output is two results files on a branch; the README is regenerated elsewhere.
 
-Written for Windows 11 with an NVIDIA GPU of 16 GB or more. On Linux the commands are the same apart from the shell.
+Written for Windows 11 with an NVIDIA GPU. The published runs used an 8 GB RTX 3070, which holds only part of `gpt-oss:20b`, so Ollama ran the rest on the CPU; a GPU with 16 GB or more holds the whole model. On Linux the commands are the same apart from the shell.
 
 ## 1. Tools
 
@@ -25,7 +25,7 @@ ollama run gpt-oss:20b "Say ready."
 ollama ps
 ```
 
-`ollama ps` must show `100% GPU`. If it shows CPU, the numbers would measure the CPU, not the model: stop and fix the GPU setup first.
+`ollama ps` shows how the model is split between GPU and CPU. If part of it runs on the CPU, the decisions are the same but the times are not comparable with a full-GPU run: write the split down and report it with the results. If it shows `100% CPU`, the GPU is not in use at all: fix that first.
 
 ## 3. Repository
 
