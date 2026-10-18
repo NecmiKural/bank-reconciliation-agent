@@ -72,6 +72,17 @@ The prompt group is the fence and the prompt's untrusted-text guidance; the code
 | Code group only | B | 1 | 0 of 20 | 0 | 0 | 0 values | 0 of 10 | 100.0% |
 | All off | A | 1 | 0 of 20 | 0 | 0 | 63 values | 0 of 10 | 100.0% |
 | All off | B | 1 | 1 of 20 | 1 | 0 | 43 values | 1 of 10 | 100.0% |
+
+### Candidate search: trigram, full text, vector, RRF
+
+Each cell is recall at 5 and mean reciprocal rank of the labelled invoices among all open invoices, over the 215 lines per business that have a match; no language model is involved. Vector search uses `gemini-embedding-2` at 768 dimensions in pgvector, and RRF fuses the trigram and vector ranks. The stress set renames each payer in ways the generator never does, for example KAREN HUGHES as HUGHES KAREN; DAVEY WILLIS as Davey, Willis; DEAN OSBORNE as DEAN OSBORNE LIMITED. Commit `193f213`.
+
+| Business | Payee | Trigram | Full text | Vector | RRF |
+|---|---|---|---|---|---|
+| A | as the bank wrote it | 0.944 and 0.932 | 0.944 and 0.932 | 0.944 and 0.932 | 0.944 and 0.932 |
+| A | renamed (stress set) | 0.944 and 0.932 | 0.912 and 0.903 | 0.944 and 0.932 | 0.944 and 0.932 |
+| B | as the bank wrote it | 0.935 and 0.907 | 0.935 and 0.905 | 0.935 and 0.907 | 0.935 and 0.907 |
+| B | renamed (stress set) | 0.935 and 0.907 | 0.912 and 0.880 | 0.930 and 0.905 | 0.935 and 0.907 |
 <!-- results:end -->
 
 ## How it works
@@ -98,6 +109,10 @@ bank line ──► rules pass ──► closed: exact amount, one candidate, pa
 
 The loop is short enough to read in one sitting, and every way it can end is a line of code with a test. Approvals, budgets, escalation on every non-terminal ending, replay keyed by request and tracing are all things this project needs to control exactly, so an agent framework would add surface without removing work. The tool calls go through one OpenAI-compatible client, which keeps the provider a configuration choice.
 
+### Why trigram search and not vectors
+
+The agent finds candidates by trigram similarity on the payer name in Postgres. Vector and hybrid (RRF) search were built and measured against it, in pgvector on Gemini embeddings, including on a stress set of renamed payers. They did not find the right invoices any sooner (see the candidate search table), so the agent keeps the simpler search. The misses that remain at rank 5 come from ordering several invoices of the right payer, which no name-matching method changes.
+
 ### Provider-agnostic
 
 DeepSeek, Ollama, Gemini, OpenAI and Anthropic all serve the OpenAI Chat Completions format, so a provider is one row in [llm.py](src/recon/llm.py): base URL, key variable, model id and prices. The results above use DeepSeek's hosted model; a local `gpt-oss:20b` row is configured for Ollama and not measured yet. Only synthetic data is ever sent to a provider.
@@ -122,7 +137,7 @@ The safety table measures these controls on the full runs. The ablation switches
 - **A redirect to a similarly named payer is not measured.** Every redirect target in the data belongs to a payer with a clearly different name, and the verifier's payer check is a name-similarity threshold.
 - **The auto-approval simulation assumes a perfect reviewer.** A payer counts as seen after an earlier match the labels mark correct.
 - **Small counts give wide bounds.** A zero out of a few dozen lines is reported with its upper bound for that reason.
-- **One model so far.** The local model row and a second hosted model are the next measurements.
+- **Two hosted models from one provider so far.** The larger one escalated more lines and cost more without being more accurate here; a local model row is next.
 - **Replay tests the harness, not the model.** The CI gate replays recorded model output; it proves the code still makes the same decisions from the same answers. Live quality comes only from the dated results files.
 
 ## Verification
@@ -138,12 +153,13 @@ The safety table measures these controls on the full runs. The ablation switches
 Needs [uv](https://docs.astral.sh/uv/) and Docker. Copy `.env.example` to `.env` for the model keys.
 
 ```bash
-make db          # Postgres 17 with pg_trgm on localhost:5433
+make db          # Postgres 17 with pg_trgm and pgvector on localhost:5433
 make test        # unit tests, least-privilege tests, the replay gate, the README check
 make demo        # replays the committed 40-line slice; no model key needed
 make baseline    # the rules pass alone, on both businesses
 make eval        # live, three repeats per business; writes results/*.json
 uv run recon report   # rewrite the results block above from results/*.json
+uv run --env-file .env recon retrieval   # the candidate search ablation (embeddings only)
 ```
 
 A run leaves its proposals in the review queue. The policy runs in shadow mode: it records what it would auto-approve and posts nothing. A person reviews the rest:
@@ -169,6 +185,7 @@ src/recon/
   llm.py            one OpenAI-compatible client, record and replay, prices
   policy.py         the shadow auto-approval policy
   evaluate.py       end-to-end runs, metrics and results files
+  retrieval.py      the candidate search ablation: trigram, full text, pgvector, RRF
   gate.py           the CI gate for a replayed run
   report.py         the README results block
   cli.py            the `recon` command
@@ -185,7 +202,7 @@ The rules the coding agents work under are committed in [AGENTS.md](AGENTS.md). 
 
 ## Tech
 
-Python 3.13 · uv · PostgreSQL 17 · pg_trgm · psycopg 3 · OpenAI-compatible APIs (DeepSeek, Ollama) · pytest · ruff · GitHub Actions · Docker Compose
+Python 3.13 · uv · PostgreSQL 17 · pg_trgm · pgvector · psycopg 3 · OpenAI-compatible APIs (DeepSeek, Gemini embeddings, Ollama) · pytest · ruff · GitHub Actions · Docker Compose
 
 ---
 *Personal portfolio project, MIT licensed.*

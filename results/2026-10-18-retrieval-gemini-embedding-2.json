@@ -1,0 +1,187 @@
+{
+ "businesses": {
+  "A": {
+   "as_written": {
+    "fts": {
+     "mrr": 0.9322,
+     "n": 215,
+     "recall_at_10": 0.986,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9442
+    },
+    "rrf": {
+     "mrr": 0.9322,
+     "n": 215,
+     "recall_at_10": 0.986,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9442
+    },
+    "trigram": {
+     "mrr": 0.9322,
+     "n": 215,
+     "recall_at_10": 0.986,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9442
+    },
+    "vector": {
+     "mrr": 0.9322,
+     "n": 215,
+     "recall_at_10": 0.986,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9442
+    }
+   },
+   "dataset_fingerprint": "760f90286386eb72",
+   "renamed": {
+    "fts": {
+     "mrr": 0.9031,
+     "n": 215,
+     "recall_at_10": 0.9488,
+     "recall_at_25": 0.9628,
+     "recall_at_5": 0.9116
+    },
+    "rrf": {
+     "mrr": 0.9318,
+     "n": 215,
+     "recall_at_10": 0.9814,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9442
+    },
+    "trigram": {
+     "mrr": 0.9322,
+     "n": 215,
+     "recall_at_10": 0.986,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9442
+    },
+    "vector": {
+     "mrr": 0.9316,
+     "n": 215,
+     "recall_at_10": 0.9814,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9442
+    }
+   },
+   "renamed_examples": [
+    [
+     "KAREN HUGHES",
+     "HUGHES KAREN"
+    ],
+    [
+     "KAREN HUGHES",
+     "HUGHES KAREN"
+    ],
+    [
+     "DAVEY WILLIS",
+     "Davey, Willis"
+    ],
+    [
+     "KAREN HUGHES",
+     "HUGHES KAREN"
+    ],
+    [
+     "DEAN OSBORNE",
+     "DEAN OSBORNE LIMITED"
+    ],
+    [
+     "MANN GROUP",
+     "Mann, Group"
+    ]
+   ]
+  },
+  "B": {
+   "as_written": {
+    "fts": {
+     "mrr": 0.905,
+     "n": 215,
+     "recall_at_10": 0.9953,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9349
+    },
+    "rrf": {
+     "mrr": 0.9074,
+     "n": 215,
+     "recall_at_10": 0.9953,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9349
+    },
+    "trigram": {
+     "mrr": 0.9074,
+     "n": 215,
+     "recall_at_10": 0.9953,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9349
+    },
+    "vector": {
+     "mrr": 0.9074,
+     "n": 215,
+     "recall_at_10": 0.9953,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9349
+    }
+   },
+   "dataset_fingerprint": "04667ae5a0e886e5",
+   "renamed": {
+    "fts": {
+     "mrr": 0.8802,
+     "n": 215,
+     "recall_at_10": 0.9581,
+     "recall_at_25": 0.9674,
+     "recall_at_5": 0.9116
+    },
+    "rrf": {
+     "mrr": 0.9074,
+     "n": 215,
+     "recall_at_10": 0.9953,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9349
+    },
+    "trigram": {
+     "mrr": 0.9074,
+     "n": 215,
+     "recall_at_10": 0.9953,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9349
+    },
+    "vector": {
+     "mrr": 0.9055,
+     "n": 215,
+     "recall_at_10": 0.9953,
+     "recall_at_25": 1.0,
+     "recall_at_5": 0.9302
+    }
+   },
+   "renamed_examples": [
+    [
+     "POWELL LD",
+     "LD POWELL"
+    ],
+    [
+     "RESSWELL SMITH",
+     "SMITH RESSWELL"
+    ],
+    [
+     "GRAHAM LTD",
+     "LTD GRAHAM"
+    ],
+    [
+     "MORTIMER SCOTT",
+     "Mortimer, Scott"
+    ],
+    [
+     "FORSYTH LLC",
+     "FORSYTH"
+    ],
+    [
+     "MONIQUE NIELSEN",
+     "NIELSEN MONIQUE"
+    ]
+   ]
+  }
+ },
+ "commit": "193f213",
+ "dims": 768,
+ "embedding_model": "gemini-embedding-2",
+ "generated_at": "2026-10-18T18:11:01+00:00",
+ "retrieval": true
+}
