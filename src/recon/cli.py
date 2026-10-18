@@ -85,6 +85,12 @@ def cmd_eval(args: argparse.Namespace) -> None:
         print(f"wrote {evaluate.write(result, args.out, args.name)}")
 
 
+def cmd_mcp(args: argparse.Namespace) -> None:
+    from recon import mcp_server  # imported here: the MCP SDK is only needed for this command
+
+    mcp_server.build().run("stdio")
+
+
 def cmd_retrieval(args: argparse.Namespace) -> None:
     spec = retrieval.GEMINI
     cache = Path("cassettes") / f"embeddings-{spec.name}-{spec.dims}.json"
@@ -166,6 +172,9 @@ def main(argv: list[str] | None = None) -> None:
             p.add_argument("--out", type=Path, default=Path("results"))
             p.add_argument("--name", default=None, help="file name without .json")
             p.add_argument("--no-save", dest="save", action="store_false")
+
+    p = sub.add_parser("mcp", help="serve the read-only ledger tools over MCP on stdio")
+    p.set_defaults(func=cmd_mcp)
 
     p = sub.add_parser("retrieval", help="compare trigram, full-text, vector and RRF search")
     p.add_argument("--out", type=Path, default=Path("results"))
