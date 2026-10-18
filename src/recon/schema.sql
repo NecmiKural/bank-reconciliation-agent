@@ -52,6 +52,7 @@ CREATE TABLE ledger.allocation (
     bank_line_id text NOT NULL REFERENCES ledger.bank_line,
     invoice_id   text REFERENCES ledger.invoice,
     rule         text,
+    amount_cents bigint NOT NULL,
     posted_by    text NOT NULL DEFAULT current_user,
     posted_at    timestamptz NOT NULL DEFAULT now(),
     CHECK ((invoice_id IS NULL) <> (rule IS NULL))
@@ -66,6 +67,8 @@ CREATE TABLE queue.proposal (
     rule         text NOT NULL DEFAULT '',
     source       text NOT NULL,  -- 'rules' or a model id
     rationale    text NOT NULL DEFAULT '',
+    policy       text NOT NULL DEFAULT 'review' CHECK (policy IN ('auto', 'review')),
+    policy_note  text NOT NULL DEFAULT '',
     created_at   timestamptz NOT NULL DEFAULT now()
 );
 

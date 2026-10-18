@@ -107,3 +107,59 @@ def test_every_labelled_answer_passes_the_payer_check(conn, spec):
         payer = payees[invoices[label.invoice_ids[0]].contact_id]
         sim = conn.execute("SELECT similarity(%s, %s)", [payer, line.payee]).fetchone()[0]
         assert sim >= PAYER_THRESHOLD or line.reference in label.invoice_ids, (label, sim)
+
+
+def test_review_posts_approved_matches_and_audits_every_decision(conn):
+    from recon.policy import Verdict
+    from recon.score import Decision
+
+    ds = synth.generate(synth.SPECS[0])
+    db.reset(conn, ds)
+    match = next(label for label in ds.labels if label.invoice_ids)
+    other, auto = [line.id for line in ds.lines if line.id != match.line_id][:2]
+    db.queue(
+        conn,
+        "r1",
+        [
+            (Decision(match.line_id, "match", match.invoice_ids), Verdict(False, "first payer")),
+            (Decision(other, "escalate", rationale="unsure"), Verdict(False, "escalated")),
+            (Decision(auto, "bank_rule", rule="bank_fee"), Verdict(True, "owner bank rule")),
+        ],
+    )
+    waiting = {row[1]: row[0] for row in db.pending(conn, "r1")}
+    assert set(waiting) == {match.line_id, other}  # the auto verdict needs no human
+
+    db.review(conn, waiting[match.line_id], approve=True, note="checked remittance")
+    paid = conn.execute(
+        "SELECT count(*) FROM ledger.invoice WHERE status = 'paid' AND id = ANY(%s)",
+        [list(match.invoice_ids)],
+    ).fetchone()[0]
+    assert paid == count(conn, "ledger.allocation") == len(match.invoice_ids)
+    with pytest.raises(ValueError, match="already decided"):
+        db.review(conn, waiting[match.line_id], approve=True)
+    with pytest.raises(ValueError, match="nothing to post"):
+        db.review(conn, waiting[other], approve=True)
+    db.review(conn, waiting[other], approve=False, note="unknown payer")
+    assert db.pending(conn, "r1") == []
+    assert count(conn, "audit.approval") == 2
+
+
+def test_approving_a_part_payment_leaves_the_invoice_open(conn):
+    from recon.policy import Verdict
+    from recon.score import Decision
+
+    ds = synth.generate(synth.SPECS[0])
+    db.reset(conn, ds)
+    lines = {line.id: line for line in ds.lines}
+    part = next(label for label in ds.labels if label.case == "partial")
+    db.queue(conn, "r2", [(Decision(part.line_id, "match", part.invoice_ids), Verdict(False, "x"))])
+    (pid,) = [row[0] for row in db.pending(conn, "r2")]
+    db.review(conn, pid, approve=True, actor="tester")
+    status, allocated = conn.execute(
+        "SELECT i.status, a.amount_cents FROM ledger.invoice i"
+        " JOIN ledger.allocation a ON a.invoice_id = i.id WHERE i.id = %s",
+        [part.invoice_ids[0]],
+    ).fetchone()
+    assert status == "open" and allocated == lines[part.line_id].amount_cents
+    actor = conn.execute("SELECT actor FROM audit.approval").fetchone()[0]
+    assert actor == "tester"

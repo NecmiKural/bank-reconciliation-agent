@@ -11,8 +11,9 @@ from importlib.resources import files
 import psycopg
 from psycopg import sql
 
+from recon.policy import Verdict
 from recon.score import Decision
-from recon.synth import Dataset
+from recon.synth import FEE_TOLERANCE_CENTS, Dataset
 
 DEFAULT_URL = "postgresql://recon:recon@localhost:5433/recon"  # the compose.yaml service
 ROLES = ("recon_agent", "recon_reviewer")
@@ -78,16 +79,118 @@ def reset(conn: psycopg.Connection, dataset: Dataset) -> None:
             )
 
 
-def queue(conn: psycopg.Connection, run_id: str, decisions: Iterable[Decision]) -> None:
-    """Write decisions to the review queue, as the agent role: the only write it may make."""
+def queue(conn: psycopg.Connection, run_id: str, items: Iterable[tuple[Decision, Verdict]]) -> None:
+    """Write decisions and policy verdicts to the review queue, as the agent role.
+
+    This is the only write the agent role may make. Shadow mode stops here: an "auto"
+    verdict records what the policy would approve, and nothing is posted.
+    """
     rows = [
-        (run_id, d.line_id, d.decision, list(d.invoice_ids), d.rule, d.source, d.rationale)
-        for d in decisions
+        (
+            run_id,
+            d.line_id,
+            d.decision,
+            list(d.invoice_ids),
+            d.rule,
+            d.source,
+            d.rationale,
+            "auto" if v.auto else "review",
+            v.reason,
+        )
+        for d, v in items
     ]
     with as_role(conn, "recon_agent"), conn.cursor() as cur:
         cur.executemany(
-            "INSERT INTO queue.proposal"
-            " (run_id, bank_line_id, decision, invoice_ids, rule, source, rationale)"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            "INSERT INTO queue.proposal (run_id, bank_line_id, decision, invoice_ids, rule,"
+            " source, rationale, policy, policy_note) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
             rows,
         )
+
+
+PENDING_SQL = """
+SELECT p.id, p.bank_line_id, b.amount_cents, b.payee, p.decision, p.invoice_ids,
+       p.policy_note, p.rationale
+FROM queue.proposal p
+JOIN ledger.bank_line b ON b.id = p.bank_line_id
+WHERE p.run_id = %s AND p.policy = 'review'
+  AND NOT EXISTS (SELECT FROM audit.approval a WHERE a.proposal_id = p.id)
+ORDER BY b.posted, p.id
+"""
+
+
+def pending(conn: psycopg.Connection, run_id: str) -> list[tuple]:
+    """Proposals of a run that wait for a human."""
+    with as_role(conn, "recon_reviewer"):
+        return conn.execute(PENDING_SQL, [run_id]).fetchall()
+
+
+def review(
+    conn: psycopg.Connection, proposal_id: int, approve: bool, note: str = "", actor: str = ""
+) -> None:
+    """Approve (and post) or reject one proposal, as the reviewer, with an audit row.
+
+    A split must add up exactly. A single invoice is marked paid once its allocations come
+    within the fee tolerance of its amount; a part payment leaves it open.
+
+    NOTE: the already-decided check and the insert are not serialised, which is fine for one
+    reviewer at a terminal. Concurrent reviewers would need a unique index on proposal_id.
+    """
+    with as_role(conn, "recon_reviewer"):
+        row = conn.execute(
+            "SELECT bank_line_id, decision, invoice_ids, rule FROM queue.proposal WHERE id = %s",
+            [proposal_id],
+        ).fetchone()
+        if row is None:
+            raise LookupError(f"no proposal {proposal_id}")
+        line_id, decision, invoice_ids, rule = row
+        decided = conn.execute(
+            "SELECT 1 FROM audit.approval WHERE proposal_id = %s", [proposal_id]
+        ).fetchone()
+        if decided:
+            raise ValueError(f"proposal {proposal_id} was already decided")
+        if approve and decision == "escalate":
+            raise ValueError("an escalation has nothing to post; reject it or match by hand")
+        actor = actor or "reviewer"
+        conn.execute(
+            "INSERT INTO audit.approval (proposal_id, decision, actor, note)"
+            " VALUES (%s, %s, %s, %s)",
+            [proposal_id, "approved" if approve else "rejected", actor, note],
+        )
+        if not approve:
+            return
+        line_cents = conn.execute(
+            "SELECT amount_cents FROM ledger.bank_line WHERE id = %s", [line_id]
+        ).fetchone()[0]
+        allocate = (
+            "INSERT INTO ledger.allocation"
+            " (bank_line_id, invoice_id, rule, amount_cents, posted_by)"
+            " VALUES (%s, %s, %s, %s, %s)"
+        )
+        if decision == "bank_rule":
+            conn.execute(allocate, [line_id, None, rule, line_cents, actor])
+            return
+        invoices = conn.execute(
+            "SELECT id, amount_cents, status FROM ledger.invoice WHERE id = ANY(%s) FOR UPDATE",
+            [invoice_ids],
+        ).fetchall()
+        not_open = sorted(set(invoice_ids) - {i for i, _, status in invoices if status == "open"})
+        if not_open:
+            raise ValueError(f"{', '.join(not_open)} is not open")
+        if len(invoices) > 1:
+            if sum(amount for _, amount, _ in invoices) != line_cents:
+                raise ValueError("the invoices of a split must add up to the line")
+            settled = [(i, amount) for i, amount, _ in invoices]
+        else:
+            ((invoice_id, amount, _),) = invoices
+            before = conn.execute(
+                "SELECT coalesce(sum(amount_cents), 0) FROM ledger.allocation"
+                " WHERE invoice_id = %s",
+                [invoice_id],
+            ).fetchone()[0]
+            settled = [(invoice_id, line_cents)]
+            if amount - before - line_cents > FEE_TOLERANCE_CENTS:
+                conn.execute(allocate, [line_id, invoice_id, None, line_cents, actor])
+                return  # a part payment: the invoice stays open
+        for invoice_id, cents in settled:
+            conn.execute(allocate, [line_id, invoice_id, None, cents, actor])
+            conn.execute("UPDATE ledger.invoice SET status = 'paid' WHERE id = %s", [invoice_id])
