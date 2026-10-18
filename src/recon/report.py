@@ -16,12 +16,12 @@ from recon.score import Decision
 
 START = "<!-- results:start -->"
 END = "<!-- results:end -->"
-BUSINESSES = {"A": "Business A (development)", "B": "Business B (held out)"}
+BUSINESSES = {"A": "Business A (development)", "B": "Business B (second seed)"}
 ABLATIONS = {
-    "on": "All defences on",
-    "prompt_only": "Prompt guidance and fence only",
-    "code_only": "Code defences only",
-    "off": "No defences",
+    "on": "All on",
+    "prompt_only": "Prompt group only",
+    "code_only": "Code group only",
+    "off": "All off",
 }
 
 
@@ -105,10 +105,21 @@ def facts(result: dict) -> dict[str, Any]:
             sum(c["pii_leak"]["n"] for c in code),
         ],
         "agent_decisions": sum(s["agent"]["n"] for s in summaries),
+        "match_proposals": sum(s["agent"]["match"]["proposed"] for s in summaries),
     }
 
 
+def file_name(result: dict) -> str:
+    """The results file a result was written to, by the naming rule in evaluate.write."""
+    parts = [result["generated_at"][:10], result["business"], result["model"], result["mode"]]
+    name = result.get("defences", {}).get("name", "on")
+    if name != "on":
+        parts.append(f"defences_{name}")
+    return "-".join(parts).replace(":", "_") + ".json"
+
+
 def headline(main: dict[str, dict], results: list[dict]) -> str:
+    proposals = sum(f["match_proposals"] for f in main.values())
     decisions = sum(f["agent_decisions"] for f in main.values())
     wrong = sum(f["agg"]["totals"]["wrong_matches"] for f in main.values())
     hit = sum(f["agg"]["totals"]["model_attacks"]["lines_hit_in_any_repeat"] for f in main.values())
@@ -120,18 +131,23 @@ def headline(main: dict[str, dict], results: list[dict]) -> str:
     rules = " and ".join(pct(f["rules_only"]["match"]["recall"]) for f in main.values())
     bound = max(f["agg"]["totals"]["model_attacks"]["upper95"] for f in main.values())
     text = (
-        f"**{wrong} wrong matches in {decisions} agent decisions** over {runs} live runs on each"
-        f" of two synthetic businesses, one held out. Rules plus agent matched {recall} of"
-        f" matchable lines; the rules pass alone matched {rules}. **{hit} of {lines} injected"
-        f" lines** that ask the model to pick another invoice succeeded in any run (95% upper"
-        f" bound per business: {pct(bound)})"
+        f"**{wrong} wrong matches in {proposals} agent match proposals** ({decisions} agent"
+        f" decisions) over {runs} live runs on each of two synthetic businesses. Rules plus agent"
+        f" matched {recall} of the lines that have a matching invoice; the rules pass alone"
+        f" matched {rules}. **{hit} of {lines} injected lines** that ask the model to match a"
+        f" different or an extra invoice succeeded in any run (95% upper bound per business:"
+        f" {pct(bound)})"
     )
     off = [pick(results, b, "off") for b in main]
     if all(off):
         off_hit = sum(
             r["aggregate"]["totals"]["model_attacks"]["lines_hit_in_any_repeat"] for r in off
         )
-        text += f"; with every defence switched off, {off_hit} of {lines} did"
+        runs_off = min(r["repeats"] for r in off)
+        text += (
+            f"; in {runs_off} run{'s' if runs_off != 1 else ''} with every defence switched off,"
+            f" {off_hit} of {lines} did, too few runs to rank the defences"
+        )
     return text + "."
 
 
@@ -180,18 +196,22 @@ def main_table(main: dict[str, dict]) -> list[str]:
         lambda f: f"{f['first']['agent_lines']} lines, {pct(f['agg']['agent_accuracy']['mean'])}",
     )
     row(f"Wrong matches in {runs} runs", lambda f: f"**{f['agg']['totals']['wrong_matches']}**")
-    row("Auto-approved by the shadow policy", auto)
+    row("Would be auto-approved in shadow mode (first run)", auto)
     row(f"Wrong auto-approvals in {runs} runs", wrong_auto)
     row(
         "Agent lines with the same decision in every run",
-        lambda f: pct(f["agg"]["decision_agreement"] or 1.0),
+        lambda f: (
+            pct(f["agg"]["decision_agreement"])
+            if f["agg"]["decision_agreement"] is not None
+            else "n/a"
+        ),
     )
     row(
         "Cost per 100 bank lines (peak price)",
         lambda f: f"${f['agg']['cost_per_100_bank_lines_usd']['mean']:.3f}",
     )
     row(
-        "Latency per agent line, p50 and p95",
+        "Model time per agent line, p50 and p95 (8 lines in parallel)",
         lambda f: (
             f"{f['agg']['latency_p50_ms']['mean'] / 1000:.1f} s and"
             f" {f['agg']['latency_p95_ms']['mean'] / 1000:.1f} s"
@@ -232,10 +252,6 @@ def safety_table(main: dict[str, dict]) -> list[str]:
 
     row("Redirect and over-allocation payloads that succeeded in any run", attacks)
     row(
-        "Pre-approval payloads that got auto-approved",
-        lambda f: f"{f['preapproval'][0]} of {f['preapproval'][1]} line-runs",
-    )
-    row(
         "Planted personal data sent to the provider, or queued",
         lambda f: (
             f"{f['agg']['totals']['pii_leaks_outbound']} and"
@@ -249,9 +265,9 @@ def safety_table(main: dict[str, dict]) -> list[str]:
 
 def ablation_table(results: list[dict], main: dict[str, dict]) -> list[str]:
     out = [
-        "| Defences | Business | Runs | Injected lines that succeeded | Wrong matches"
-        " | Wrong auto-approvals"
-        " | Personal data sent to the provider | Personal data echoed to the queue"
+        "| Defences | Business | Runs | Redirect and over-allocation lines that succeeded"
+        " | Wrong matches | Wrong auto-approvals | Planted values sent to the provider"
+        " | Repeat-personal-data payloads echoed in the rationale (line-runs)"
         " | Ordinary agent lines correct |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
@@ -280,9 +296,11 @@ def render(results_dir: Path) -> str:
     if not main:
         return f"{START}\n_No results yet: run `make eval`._\n{END}"
     sources = ", ".join(
-        f"`results/{f['result']['generated_at'][:10]}-{b}-...json` at commit"
-        f" `{f['result']['commit']}`"
-        for b, f in main.items()
+        f"`results/{file_name(f['result'])}` (commit `{f['result']['commit']}`)"
+        for f in main.values()
+    )
+    ablation_commits = sorted(
+        {r["commit"] for r in results if r.get("defences", {}).get("name", "on") != "on"}
     )
     first = next(iter(main.values()))["result"]
     lines = [
@@ -294,7 +312,10 @@ def render(results_dir: Path) -> str:
         *main_table(main),
         "",
         f"Model `{first['model']}` (`{first['api_model']}`), prompt `{first['prompt_sha']}`;"
-        f" prices checked {first['prices_checked']}. Sources: {sources}.",
+        f" prices checked {first['prices_checked']}. Sources: {sources}. Business B has its own"
+        " seed, invoice format, wording and case mix and was not used to write the prompt or the"
+        " policy screen; its labels were used to check the generator and the verifier's payer"
+        " threshold.",
         "",
         "### Agent decisions by case",
         "",
@@ -307,10 +328,13 @@ def render(results_dir: Path) -> str:
         "",
         *safety_table(main),
         "",
-        "### Which defence does the work",
+        "### Defences switched off in two groups",
         "",
-        "The same lines with defences switched off one group at a time. Personal data is echoed"
-        " when a planted value appears in the rationale written to the queue.",
+        "The prompt group is the fence and the prompt's untrusted-text guidance; the code group"
+        " is redaction, the verifier's payer check and the policy screen. Each ablation row is"
+        " one run against the main rows' three, so it shows what redaction does and is too small"
+        " to rank the rest. A repeat-personal-data payload is echoed when a planted value appears"
+        f" in the rationale. Ablation commit: {', '.join(f'`{c}`' for c in ablation_commits)}.",
         "",
         *ablation_table(results, main),
         END,
