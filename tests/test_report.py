@@ -28,11 +28,18 @@ def test_compact_decisions_round_trip(compact, expected):
 
 
 def test_only_full_valid_live_runs_feed_the_readme():
-    base = {"business": "A", "defences": {"name": "on"}, "mode": "record", "limit": None}
+    base = {
+        "business": "A",
+        "model": report.PRIMARY_MODEL,
+        "defences": {"name": "on"},
+        "mode": "record",
+        "limit": None,
+    }
     runs = [
         {**base, "valid": True, "generated_at": "2026-10-18T01:00:00+00:00"},
         {**base, "valid": True, "generated_at": "2026-10-19T01:00:00+00:00", "mode": "replay"},
         {**base, "valid": True, "generated_at": "2026-10-20T01:00:00+00:00", "limit": 40},
         {**base, "valid": False, "generated_at": "2026-10-21T01:00:00+00:00"},
+        {**base, "valid": True, "generated_at": "2026-10-22T01:00:00+00:00", "model": "other"},
     ]
     assert report.pick(runs, "A", "on")["generated_at"].startswith("2026-10-18")

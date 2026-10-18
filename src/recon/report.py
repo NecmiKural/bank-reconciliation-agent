@@ -14,6 +14,7 @@ from recon import score, synth
 from recon.evaluate import fingerprint
 from recon.score import Decision
 
+PRIMARY_MODEL = "deepseek-flash"  # the main tables; other models get a comparison table
 START = "<!-- results:start -->"
 END = "<!-- results:end -->"
 BUSINESSES = {"A": "Business A (development)", "B": "Business B (second seed)"}
@@ -25,16 +26,21 @@ ABLATIONS = {
 }
 
 
-def load(results_dir: Path) -> list[dict[str, Any]]:
-    return [json.loads(p.read_text()) for p in sorted(results_dir.glob("*.json"))]
+def load(results_dir: Path, kind: str = "runs") -> list[dict[str, Any]]:
+    """Results files of one kind: pipeline runs, or the retrieval ablation."""
+    files = [json.loads(p.read_text()) for p in sorted(results_dir.glob("*.json"))]
+    return [f for f in files if (kind in f)]
 
 
-def pick(results: list[dict], business: str, defences: str) -> dict | None:
-    """The latest full live run of a business with the given defences."""
+def pick(
+    results: list[dict], business: str, defences: str, model: str = PRIMARY_MODEL
+) -> dict | None:
+    """The latest full live run of a business with the given defences and model."""
     found = [
         r
         for r in results
         if r["business"] == business
+        and r["model"] == model
         and r.get("defences", {}).get("name", "on") == defences  # older files: always on
         and r["mode"] in ("live", "record")
         and r["limit"] is None
@@ -290,6 +296,77 @@ def ablation_table(results: list[dict], main: dict[str, dict]) -> list[str]:
     return out
 
 
+def model_table(results: list[dict]) -> list[str]:
+    models = sorted(
+        {r["model"] for r in results if r.get("defences", {}).get("name", "on") == "on"},
+        key=lambda m: (m != PRIMARY_MODEL, m),
+    )
+    out = [
+        "| Model | Business | Runs | Agent accuracy | Wrong matches"
+        " | Redirect and over-allocation lines that succeeded | Cost per 100 bank lines"
+        " | Model time per agent line, p50 and p95 | Agent lines with the same decision |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
+    for model in models:
+        for b in BUSINESSES:
+            r = pick(results, b, "on", model)
+            if r is None:
+                continue
+            a, t = r["aggregate"], r["aggregate"]["totals"]
+            agreement = a["decision_agreement"]
+            out.append(
+                f"| `{model}` | {b} | {r['repeats']} | {pct(a['agent_accuracy']['mean'])}"
+                f" | {t['wrong_matches']} | {t['model_attacks']['lines_hit_in_any_repeat']} of"
+                f" {t['model_attacks']['distinct_lines']}"
+                f" | ${a['cost_per_100_bank_lines_usd']['mean']:.3f}"
+                f" | {a['latency_p50_ms']['mean'] / 1000:.1f} s and"
+                f" {a['latency_p95_ms']['mean'] / 1000:.1f} s"
+                f" | {pct(agreement) if agreement is not None else 'n/a'} |"
+            )
+    return out
+
+
+RETRIEVAL_METHODS = {"trigram": "Trigram", "fts": "Full text", "vector": "Vector", "rrf": "RRF"}
+QUERY_SETS = {"as_written": "as the bank wrote it", "renamed": "renamed (stress set)"}
+
+
+def retrieval_table(result: dict) -> list[str]:
+    out = [
+        "| Business | Payee | " + " | ".join(RETRIEVAL_METHODS.values()) + " |",
+        "|---" * (len(RETRIEVAL_METHODS) + 2) + "|",
+    ]
+    for b, parts in result["businesses"].items():
+        for key, label in QUERY_SETS.items():
+            cells = [
+                f"{parts[key][m]['recall_at_5']:.3f} and {parts[key][m]['mrr']:.3f}"
+                for m in RETRIEVAL_METHODS
+            ]
+            out.append(f"| {b} | {label} | " + " | ".join(cells) + " |")
+    return out
+
+
+def retrieval_section(results_dir: Path) -> list[str]:
+    found = load(results_dir, kind="retrieval")
+    if not found:
+        return []
+    r = max(found, key=lambda x: x["generated_at"])
+    examples = "; ".join(f"{a} as {b}" for a, b in r["businesses"]["A"]["renamed_examples"][:3])
+    n = r["businesses"]["A"]["as_written"]["trigram"]["n"]
+    return [
+        "",
+        "### Candidate search: trigram, full text, vector, RRF",
+        "",
+        f"Each cell is recall at 5 and mean reciprocal rank of the labelled invoices among all"
+        f" open invoices, over the {n} lines per business that have a match; no language model"
+        f" is involved. Vector search uses `{r['embedding_model']}` at {r['dims']} dimensions"
+        " in pgvector, and RRF fuses the trigram and vector ranks. The stress set renames each"
+        f" payer in ways the generator never does, for example {examples}. Commit"
+        f" `{r['commit']}`.",
+        "",
+        *retrieval_table(r),
+    ]
+
+
 def render(results_dir: Path) -> str:
     results = load(results_dir)
     main = {b: facts(r) for b in BUSINESSES if (r := pick(results, b, "on"))}
@@ -317,6 +394,12 @@ def render(results_dir: Path) -> str:
         " policy screen; its labels were used to check the generator and the verifier's payer"
         " threshold.",
         "",
+        "### Models",
+        "",
+        "Every row runs the same prompt, tools and data; only the model differs.",
+        "",
+        *model_table(results),
+        "",
         "### Agent decisions by case",
         "",
         "Correct out of all agent decisions, pooled over the runs. Cases the rules pass always"
@@ -337,6 +420,7 @@ def render(results_dir: Path) -> str:
         f" in the rationale. Ablation commit: {', '.join(f'`{c}`' for c in ablation_commits)}.",
         "",
         *ablation_table(results, main),
+        *retrieval_section(results_dir),
         END,
     ]
     return "\n".join(lines)
