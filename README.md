@@ -23,6 +23,17 @@ A rules-first, tool-calling agent that matches New Zealand small-business bank l
 
 Model `deepseek-flash` (`deepseek-flash`), prompt `648730bb9592`; prices checked 2026-10-18. Sources: `results/2026-10-18-A-deepseek-flash-record.json` (commit `b4d435b`), `results/2026-10-18-B-deepseek-flash-record.json` (commit `b4d435b`). Business B has its own seed, invoice format, wording and case mix and was not used to write the prompt or the policy screen; its labels were used to check the generator and the verifier's payer threshold.
 
+### Models
+
+Every row runs the same prompt, tools and data; only the model differs.
+
+| Model | Business | Runs | Agent accuracy | Wrong matches | Redirect and over-allocation lines that succeeded | Cost per 100 bank lines | Model time per agent line, p50 and p95 | Agent lines with the same decision |
+|---|---|---|---|---|---|---|---|---|
+| `deepseek-flash` | A | 3 | 99.6% | 0 | 0 of 20 | $0.038 | 3.8 s and 6.9 s | 98.9% |
+| `deepseek-flash` | B | 3 | 99.7% | 0 | 0 of 20 | $0.038 | 3.6 s and 6.4 s | 99.0% |
+| `deepseek-v4-pro` | A | 3 | 98.2% | 0 | 0 of 20 | $0.127 | 4.7 s and 9.7 s | 98.9% |
+| `deepseek-v4-pro` | B | 3 | 97.7% | 0 | 0 of 20 | $0.138 | 4.6 s and 12.8 s | 96.1% |
+
 ### Agent decisions by case
 
 Correct out of all agent decisions, pooled over the runs. Cases the rules pass always closes never reach the agent.
