@@ -355,7 +355,7 @@ def git_commit() -> str:
 
     try:
         head = git("rev-parse", "--short", "HEAD")
-        dirty = git("status", "--porcelain", "--", "src", "pyproject.toml", "uv.lock")
+        dirty = git("status", "--porcelain", "--", ":/src", ":/pyproject.toml", ":/uv.lock")
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
     return f"{head}-dirty" if dirty else head
