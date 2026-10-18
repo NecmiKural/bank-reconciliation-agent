@@ -8,7 +8,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from recon import agent, db, evaluate, llm, report, rules, score, synth
+from recon import agent, db, evaluate, llm, report, retrieval, rules, score, synth
 
 SPECS = {spec.name: spec for spec in synth.SPECS}
 
@@ -85,6 +85,23 @@ def cmd_eval(args: argparse.Namespace) -> None:
         print(f"wrote {evaluate.write(result, args.out, args.name)}")
 
 
+def cmd_retrieval(args: argparse.Namespace) -> None:
+    spec = retrieval.GEMINI
+    cache = Path("cassettes") / f"embeddings-{spec.name}-{spec.dims}.json"
+    result = retrieval.run(spec, cache)
+    for business, parts in result["businesses"].items():
+        for queries in ("as_written", "renamed"):
+            row = "  ".join(
+                f"{m} R@5 {v['recall_at_5']:.3f} MRR {v['mrr']:.3f}"
+                for m, v in parts[queries].items()
+            )
+            print(f"{business} {queries:10} {row}")
+    day = result["generated_at"][:10]
+    path = args.out / f"{day}-retrieval-{spec.name}.json"
+    path.write_text(json.dumps(result, indent=1, sort_keys=True) + "\n")
+    print(f"wrote {path}")
+
+
 def cmd_report(args: argparse.Namespace) -> None:
     stale = report.sync(Path("README.md"), Path("results"), check=args.check)
     if args.check and stale:
@@ -147,6 +164,10 @@ def main(argv: list[str] | None = None) -> None:
             p.add_argument("--out", type=Path, default=Path("results"))
             p.add_argument("--name", default=None, help="file name without .json")
             p.add_argument("--no-save", dest="save", action="store_false")
+
+    p = sub.add_parser("retrieval", help="compare trigram, full-text, vector and RRF search")
+    p.add_argument("--out", type=Path, default=Path("results"))
+    p.set_defaults(func=cmd_retrieval)
 
     p = sub.add_parser("report", help="rewrite the README results block from results/*.json")
     p.add_argument("--check", action="store_true", help="fail if the block is stale")
