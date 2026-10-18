@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from recon import agent, db, llm, rules, score, synth, tools
-from recon.trace import Tracer
+from recon import db, evaluate, llm, rules, score, synth
 
 SPECS = {spec.name: spec for spec in synth.SPECS}
+
+
+def default_cassette(business: str, model: str) -> Path:
+    return Path("cassettes") / f"{business}-{model.replace(':', '_')}.jsonl"
 
 
 def cmd_synth(args: argparse.Namespace) -> None:
@@ -35,60 +39,69 @@ def cmd_baseline(args: argparse.Namespace) -> None:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    spec = llm.MODELS[args.model]
+    """One run with a line-by-line printout; leaves its proposals in the queue for review."""
     ds = synth.generate(SPECS[args.business])
-    safe_model = args.model.replace(":", "_")
+    cassette = args.cassette or default_cassette(args.business, args.model)
+    model = llm.LLM(llm.MODELS[args.model], args.mode, None if args.mode == "live" else cassette)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    run_id = f"{args.business}-{safe_model}-{stamp}"
-    cassette = args.cassette or Path("cassettes") / f"{args.business}-{safe_model}.jsonl"
-    model = llm.LLM(spec, args.mode, None if args.mode == "live" else cassette)
-    tracer = Tracer(Path("runs") / run_id / "trace.jsonl")
+    run_id = f"{args.business}-{args.model}-{stamp}"
+    run = evaluate.run_once(ds, model, run_id, args.limit, args.workers)
     labels = {label.line_id: label for label in ds.labels}
+    for line in ds.lines:
+        result = run.agent_results.get(line.id)
+        if result is None:
+            continue
+        label, decision = labels[line.id], result.decision
+        mark = "ok " if score.is_correct(label, decision) else "BAD"
+        attack = f" [{label.attack_goal}]" if label.attack_goal else ""
+        shown = ",".join(decision.invoice_ids) or decision.rationale[:60]
+        policy = "auto" if run.verdicts[line.id].auto else "review"
+        print(
+            f"{mark} {line.id} {label.case:16}{attack:16} -> {decision.decision:8} {shown}"
+            f" [{policy}] ({result.steps} steps, ${result.cost_usd:.4f})"
+        )
+    summary = evaluate.summarize(ds, run)
+    print(json.dumps({"run_id": run_id, **summary}, indent=2))
+    print(f"review with: recon review list --run {run_id}")
 
-    with db.connect() as conn:
-        db.reset(conn, ds)
-        decisions = rules.run(conn)
-        open_lines = [line for line in ds.lines if line.id not in decisions][: args.limit]
-        search = tools.db_search(conn)
-        results = {}
-        for line in open_lines:
-            result = agent.reconcile(line, model, search, agent.Limits())
-            for row in result.trace:
-                tracer.emit({"recon.run_id": run_id, **row})
-            results[line.id] = result
-            decisions[line.id] = result.decision
-            label = labels[line.id]
-            mark = "ok " if score.is_correct(label, result.decision) else "BAD"
-            attack = f" [{label.attack_goal}]" if label.attack_goal else ""
-            shown = ",".join(result.decision.invoice_ids) or result.decision.rationale[:60]
-            print(
-                f"{mark} {line.id} {label.case:16}{attack:16} -> {result.decision.decision:8}"
-                f" {shown} ({result.steps} steps, ${result.cost_usd:.4f})"
-            )
-        db.queue(conn, run_id, decisions.values())
 
-    agent_only = [labels[line_id] for line_id in results]
-    provider_errors = sum(
-        r.decision.rationale.startswith("provider error") for r in results.values()
+def cmd_eval(args: argparse.Namespace) -> None:
+    cassette = args.cassette or default_cassette(args.business, args.model)
+    result = evaluate.evaluate(
+        args.business,
+        args.model,
+        args.repeats,
+        args.mode,
+        None if args.mode == "live" else cassette,
+        args.limit,
+        args.workers,
     )
-    summary = {
-        "run_id": run_id,
-        "model": args.model,
-        "mode": args.mode,
-        "rules_closed": len(decisions) - len(results),
-        "agent_lines": len(results),
-        "limited": args.limit is not None,  # lines left unprocessed count as escalations
-        "provider_errors": provider_errors,
-        "agent": score.score(agent_only, decisions),
-        "rules_plus_agent": score.score(ds.labels, decisions),
-        "cost_usd": round(sum(r.cost_usd for r in results.values()), 4),
-        "tokens": {
-            "input": sum(r.input_tokens for r in results.values()),
-            "cached": sum(r.cached_tokens for r in results.values()),
-            "output": sum(r.output_tokens for r in results.values()),
-        },
-    }
-    print(json.dumps(summary, indent=2))
+    print(json.dumps(result["aggregate"], indent=2))
+    if not result["valid"]:
+        raise SystemExit("provider errors made this run invalid; results were not saved")
+    if args.save:
+        print(f"wrote {evaluate.write(result, args.out, args.name)}")
+
+
+def printable(text: str) -> str:
+    """Model- and payer-written text, with control characters dropped before printing."""
+    return "".join(ch for ch in text if ch.isprintable())
+
+
+def cmd_review(args: argparse.Namespace) -> None:
+    with db.connect() as conn:
+        if args.action == "list":
+            for pid, line_id, cents, payee, decision, ids, note, why in db.pending(conn, args.run):
+                target = ",".join(ids) or "-"
+                print(
+                    f"#{pid} {line_id} {cents / 100:>10,.2f} {printable(payee):20}"
+                    f" {decision:8} {target}"
+                )
+                print(f"     policy: {note}; agent: {printable(why)[:100]}")
+        else:
+            approve = args.action == "approve"
+            db.review(conn, args.proposal, approve, args.note, getpass.getuser())
+            print(f"proposal {args.proposal} {'approved' if approve else 'rejected'}")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -107,13 +120,33 @@ def main(argv: list[str] | None = None) -> None:
         p.add_argument("--business", choices=sorted(SPECS), default="A")
         p.set_defaults(func=func)
 
-    p = sub.add_parser("run", help="rules pass, then the agent on the lines it leaves open")
-    p.add_argument("--business", choices=sorted(SPECS), default="A")
-    p.add_argument("--model", choices=sorted(llm.MODELS), default="deepseek-flash")
-    p.add_argument("--mode", choices=("live", "record", "replay"), default="live")
-    p.add_argument("--cassette", type=Path, default=None)
-    p.add_argument("--limit", type=int, default=None, help="only the first N open lines")
-    p.set_defaults(func=cmd_run)
+    for name, func, text in (
+        ("run", cmd_run, "rules, agent and shadow policy once, printed line by line"),
+        ("eval", cmd_eval, "repeated runs, measured; writes results/*.json"),
+    ):
+        p = sub.add_parser(name, help=text)
+        p.add_argument("--business", choices=sorted(SPECS), default="A")
+        p.add_argument("--model", choices=sorted(llm.MODELS), default="deepseek-flash")
+        p.add_argument("--mode", choices=("live", "record", "replay"), default="live")
+        p.add_argument("--cassette", type=Path, default=None)
+        p.add_argument("--limit", type=int, default=None, help="only the first N open lines")
+        p.add_argument("--workers", type=int, default=8)
+        p.set_defaults(func=func)
+        if name == "eval":
+            p.add_argument("--repeats", type=int, default=3)
+            p.add_argument("--out", type=Path, default=Path("results"))
+            p.add_argument("--name", default=None, help="file name without .json")
+            p.add_argument("--no-save", dest="save", action="store_false")
+
+    p = sub.add_parser("review", help="list, approve or reject proposals as the reviewer")
+    actions = p.add_subparsers(dest="action", required=True)
+    a = actions.add_parser("list", help="proposals of a run that wait for a human")
+    a.add_argument("--run", required=True)
+    for action in ("approve", "reject"):
+        a = actions.add_parser(action, help=f"{action} one proposal, with an audit row")
+        a.add_argument("proposal", type=int)
+        a.add_argument("--note", default="")
+    p.set_defaults(func=cmd_review)
 
     args = parser.parse_args(argv)
     args.func(args)
