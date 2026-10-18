@@ -22,18 +22,23 @@ A rules-first, tool-calling agent that matches New Zealand small-business bank l
 
 ## Run
 
-Needs [uv](https://docs.astral.sh/uv/) and Docker.
+Needs [uv](https://docs.astral.sh/uv/) and Docker. Copy `.env.example` to `.env` for the model keys.
 
 ```bash
-docker compose up -d --wait            # Postgres 17 with pgvector and pg_trgm on localhost:5433
-uv sync
-uv run recon synth --out data          # write the two synthetic businesses as JSON
-uv run recon baseline --business A     # load business A and score the rules pass alone
-uv run --env-file .env recon run --business A --limit 12   # rules, then the agent on 12 open lines
-uv run pytest                          # includes least-privilege tests against the database
+make db          # Postgres 17 with pgvector and pg_trgm on localhost:5433
+make test        # unit tests, least-privilege tests, and the CI replay gate
+make demo        # offline: replays the committed 40-line slice, no key needed
+make baseline    # the rules pass alone, on both businesses
+make eval        # live, three repeats per business; writes results/*.json
 ```
 
-Copy `.env.example` to `.env` for the model keys; `uv run --env-file .env ...` reads it.
+A run leaves its proposals in the review queue. The policy runs in shadow mode: it records what it would auto-approve and posts nothing. A person reviews the rest:
+
+```bash
+uv run recon review list --run <run id>
+uv run recon review approve <proposal id> --note "checked remittance"
+uv run recon review reject <proposal id> --note "unknown payer"
+```
 
 ## How this was built
 
