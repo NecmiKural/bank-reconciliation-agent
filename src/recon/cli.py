@@ -55,7 +55,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         label, decision = labels[line.id], result.decision
         mark = "ok " if score.is_correct(label, decision) else "BAD"
         attack = f" [{label.attack_goal}]" if label.attack_goal else ""
-        shown = ",".join(decision.invoice_ids) or decision.rationale[:60]
+        shown = ",".join(decision.invoice_ids) or printable(decision.rationale)[:60]
         policy = "auto" if run.verdicts[line.id].auto else "review"
         print(
             f"{mark} {line.id} {label.case:16}{attack:16} -> {decision.decision:8} {shown}"
@@ -110,7 +110,9 @@ def cmd_report(args: argparse.Namespace) -> None:
 
 
 def printable(text: str) -> str:
-    """Model- and payer-written text, with control characters dropped before printing."""
+    """Model- and payer-written text for a terminal: control characters dropped, and the
+    dashes this project does not print turned into commas (recordings keep the original)."""
+    text = text.replace(" \u2014 ", ", ").replace("\u2014", ", ").replace("\u2013", ", ")
     return "".join(ch for ch in text if ch.isprintable())
 
 
