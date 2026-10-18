@@ -5,10 +5,11 @@ from __future__ import annotations
 import argparse
 import getpass
 import json
+from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-from recon import agent, db, evaluate, llm, report, retrieval, rules, score, synth
+from recon import agent, db, evaluate, llm, report, retrieval, rule_compiler, rules, score, synth
 
 SPECS = {spec.name: spec for spec in synth.SPECS}
 
@@ -83,6 +84,26 @@ def cmd_eval(args: argparse.Namespace) -> None:
         raise SystemExit("provider errors made this run invalid; results were not saved")
     if args.save:
         print(f"wrote {evaluate.write(result, args.out, args.name)}")
+
+
+def cmd_rules_compile(args: argparse.Namespace) -> None:
+    model = llm.LLM(llm.MODELS[args.model])
+    outcome = rule_compiler.compile_rule(args.sentence, model, rule_compiler.customer_payees())
+    print(json.dumps(asdict(outcome), indent=2))
+
+
+def cmd_rules_eval(args: argparse.Namespace) -> None:
+    cassette = args.cassette or Path("cassettes") / f"rules-{evaluate.safe_name(args.model)}.jsonl"
+    result = rule_compiler.evaluate(
+        args.model, args.repeats, args.mode, None if args.mode == "live" else cassette
+    )
+    for run in result["runs"]:
+        print(json.dumps(run["summary"]))
+    print(json.dumps(result["bad_rules"]))
+    day = result["generated_at"][:10]
+    path = Path("results") / f"{day}-rules-{evaluate.safe_name(args.model)}-{args.mode}.json"
+    path.write_text(json.dumps(result, indent=1, sort_keys=True) + "\n")
+    print(f"wrote {path}")
 
 
 def cmd_mcp(args: argparse.Namespace) -> None:
@@ -172,6 +193,18 @@ def main(argv: list[str] | None = None) -> None:
             p.add_argument("--out", type=Path, default=Path("results"))
             p.add_argument("--name", default=None, help="file name without .json")
             p.add_argument("--no-save", dest="save", action="store_false")
+
+    p = sub.add_parser("rules-compile", help="turn one plain-English bank rule into a rule")
+    p.add_argument("sentence")
+    p.add_argument("--model", choices=sorted(llm.MODELS), default="deepseek-flash")
+    p.set_defaults(func=cmd_rules_compile)
+
+    p = sub.add_parser("rules-eval", help="score the rule compiler on evals/rule_sentences.jsonl")
+    p.add_argument("--model", choices=sorted(llm.MODELS), default="deepseek-flash")
+    p.add_argument("--repeats", type=int, default=3)
+    p.add_argument("--mode", choices=("live", "record", "replay"), default="live")
+    p.add_argument("--cassette", type=Path, default=None)
+    p.set_defaults(func=cmd_rules_eval)
 
     p = sub.add_parser("mcp", help="serve the read-only ledger tools over MCP on stdio")
     p.set_defaults(func=cmd_mcp)

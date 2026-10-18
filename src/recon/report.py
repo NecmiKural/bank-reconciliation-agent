@@ -407,6 +407,48 @@ def retrieval_section(results_dir: Path) -> list[str]:
     ]
 
 
+def rules_section(results_dir: Path) -> list[str]:
+    found = load(results_dir, kind="rules")
+    latest: dict[str, dict] = {}
+    for r in found:
+        if r["mode"] in ("live", "record") and (
+            r["model"] not in latest or r["generated_at"] > latest[r["model"]]["generated_at"]
+        ):
+            latest[r["model"]] = r
+    if not latest:
+        return []
+    out = [
+        "",
+        "### Plain-English bank rules",
+        "",
+        "An owner writes a rule in a sentence; the model drafts JSON and code decides whether it"
+        " becomes a rule. The eval set has 40 sentences written for it: 30 rules and 10 that"
+        " must be refused (customer names, approvals, contradictions, an out-of-envelope limit,"
+        " an injection). A bad rule is a wrong rule accepted or a must-refuse sentence accepted;"
+        " its bound counts distinct sentences.",
+        "",
+        "| Model | Runs | Rules compiled exactly | Falsely refused | Bad rules (distinct"
+        " sentences, 95% upper bound) | Refused by the validator | Invalid replies |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for model in sorted(latest, key=lambda m: (m != PRIMARY_MODEL, m)):
+        r = latest[model]
+        runs = [x["summary"] for x in r["runs"]]
+        bad = r["bad_rules"]
+        out.append(
+            f"| `{model}` | {r['repeats']}"
+            f" | {sum(x['compiled_exactly'] for x in runs)} of"
+            f" {sum(x['should_accept'] for x in runs)}"
+            f" | {sum(len(x['falsely_refused']) for x in runs)}"
+            f" | {len(bad['distinct_sentences'])} of {r['sentences']} ({pct(bad['upper95'])})"
+            f" | {sum(x['refused_by_validator'] for x in runs)}"
+            f" | {sum(x['invalid_replies'] for x in runs)} |"
+        )
+    commits = ", ".join(sorted({f"`{r['commit']}`" for r in latest.values()}))
+    out += ["", f"Counts are over all runs. Commit {commits}."]
+    return out
+
+
 def render(results_dir: Path) -> str:
     results = load(results_dir)
     main = {b: facts(r) for b in BUSINESSES if (r := pick(results, b, "on"))}
@@ -469,6 +511,7 @@ def render(results_dir: Path) -> str:
         "",
         *ablation_table(results, main),
         *retrieval_section(results_dir),
+        *rules_section(results_dir),
         END,
     ]
     return "\n".join(lines)
