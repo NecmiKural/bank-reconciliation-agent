@@ -28,6 +28,9 @@ MAX_INVOICES_PER_MATCH = 3
 # match needs the invoice number in the reference field. Measured on both synthetic
 # businesses: every labelled answer clears it (tests/test_db.py).
 PAYER_THRESHOLD = 0.3
+# An approximate amount (fee deducted or part payment) says less about who paid, so it needs
+# a clearly matching name: a shared surname alone (about 0.35) must not carry it.
+APPROXIMATE_PAYER_THRESHOLD = 0.6
 
 
 @dataclass(frozen=True)
@@ -219,6 +222,9 @@ class Toolbox:
             return f"several invoices must add up exactly; they differ by {dollars(difference)}"
         if difference < 0:
             return "the line is larger than the invoice; overpayments go to a human"
+        weak_name = rows[0].payee_similarity < APPROXIMATE_PAYER_THRESHOLD
+        if difference > 0 and self.payer_check and weak_name and not in_reference:
+            return "an amount that is not exact needs a payer whose name clearly matches the line"
         if difference > FEE_TOLERANCE_CENTS and not names(self.line, rows[0].invoice):
             return "a part payment needs remittance text naming the invoice"
         return None

@@ -94,7 +94,7 @@ def test_rules_baseline_is_never_wrong(conn, spec):
 @pytest.mark.parametrize("spec", synth.SPECS, ids=lambda s: s.name)
 def test_every_labelled_answer_passes_the_payer_check(conn, spec):
     """The verifier's payer threshold must never reject a correct answer."""
-    from recon.tools import PAYER_THRESHOLD
+    from recon.tools import APPROXIMATE_PAYER_THRESHOLD, PAYER_THRESHOLD
 
     ds = synth.generate(spec)
     lines = {line.id: line for line in ds.lines}
@@ -107,6 +107,8 @@ def test_every_labelled_answer_passes_the_payer_check(conn, spec):
         payer = payees[invoices[label.invoice_ids[0]].contact_id]
         sim = conn.execute("SELECT similarity(%s, %s)", [payer, line.payee]).fetchone()[0]
         assert sim >= PAYER_THRESHOLD or line.reference in label.invoice_ids, (label, sim)
+        if label.case in ("partial", "fee_deducted"):
+            assert sim >= APPROXIMATE_PAYER_THRESHOLD or line.reference in label.invoice_ids
 
 
 def test_review_posts_approved_matches_and_audits_every_decision(conn):

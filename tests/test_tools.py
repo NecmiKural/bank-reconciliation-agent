@@ -147,3 +147,13 @@ def test_switching_off_the_payer_check_admits_another_payers_invoice():
     call(t, "search_candidates", payee="ACME", invoice_number="")
     _, decision = call(t, "propose_match", invoice_ids=["INV-4"], rationale="memo says so")
     assert decision is not None  # only the ablation may do this
+
+
+def test_an_approximate_amount_needs_a_clearly_matching_payer():
+    """A shared surname (similarity about 0.35) may not carry a fee-deducted match."""
+    namesake = Row("INV-7", "C3", "NOLAN STEVENS", 42_629, date(2026, 1, 20), 0.35)
+    line = BankLine("L1", date(2026, 5, 18), 40_572, "STEVENS COOKSLEY", "INVOICE", "")
+    t = Toolbox(line, lambda *a: [namesake])
+    call(t, "search_candidates", payee="STEVENS", invoice_number="")
+    result, decision = call(t, "propose_match", invoice_ids=["INV-7"], rationale="fee deducted")
+    assert decision is None and "clearly matches" in result["error"]
