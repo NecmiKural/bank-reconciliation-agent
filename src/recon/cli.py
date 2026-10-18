@@ -14,7 +14,7 @@ SPECS = {spec.name: spec for spec in synth.SPECS}
 
 
 def default_cassette(business: str, model: str) -> Path:
-    return Path("cassettes") / f"{business}-{model.replace(':', '_')}.jsonl"
+    return Path("cassettes") / f"{business}-{evaluate.safe_name(model)}.jsonl"
 
 
 def cmd_synth(args: argparse.Namespace) -> None:
@@ -44,7 +44,7 @@ def cmd_run(args: argparse.Namespace) -> None:
     cassette = args.cassette or default_cassette(args.business, args.model)
     model = llm.LLM(llm.MODELS[args.model], args.mode, None if args.mode == "live" else cassette)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    run_id = f"{args.business}-{args.model}-{stamp}"
+    run_id = f"{args.business}-{evaluate.safe_name(args.model)}-{stamp}"
     defences = agent.DEFENCES[args.defences]
     run = evaluate.run_once(ds, model, run_id, args.limit, args.workers, defences=defences)
     labels = {label.line_id: label for label in ds.labels}

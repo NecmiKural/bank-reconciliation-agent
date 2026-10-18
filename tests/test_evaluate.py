@@ -85,3 +85,7 @@ def test_aggregate_reports_spread_and_decision_agreement():
     assert attacks["distinct_lines"] == 20 and attacks["lines_hit_in_any_repeat"] == 1
     single = evaluate.aggregate([rep(0.9, {"L1": "escalate"}, [])])
     assert single["decision_agreement"] is None
+
+
+def test_model_names_are_made_safe_for_windows_paths():
+    assert evaluate.safe_name("ollama:gpt-oss:20b") == "ollama_gpt-oss_20b"

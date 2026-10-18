@@ -41,6 +41,11 @@ class Run:
     outbound_leaks: set[str] = field(default_factory=set)
 
 
+def safe_name(text: str) -> str:
+    """A model name such as ollama:gpt-oss:20b, made safe for file and folder names."""
+    return text.replace(":", "_")
+
+
 def fingerprint(dataset: synth.Dataset) -> str:
     return hashlib.sha256(synth.to_json(dataset).encode()).hexdigest()[:16]
 
@@ -388,7 +393,7 @@ def evaluate(
     runs = []
     for k in range(repeats):
         model = llm.LLM(model_spec, mode, cassette, salt="" if k == 0 else f"repeat-{k}")
-        run_id = f"{business}-{model_name}-{defences_name}-{stamp:%Y%m%dT%H%M%SZ}-r{k}"
+        run_id = f"{business}-{safe_name(model_name)}-{defences_name}-{stamp:%Y%m%dT%H%M%SZ}-r{k}"
         run = run_once(dataset, model, run_id, limit, workers, database_url, trace_dir, defences)
         summary, details = summarize(dataset, run)
         runs.append(
