@@ -106,6 +106,10 @@ def cmd_rules_eval(args: argparse.Namespace) -> None:
     print(f"wrote {path}")
 
 
+def cmd_attack_surface(args: argparse.Namespace) -> None:
+    print(f"wrote {evaluate.write_attack_surface(Path('results'))}")
+
+
 def cmd_mcp(args: argparse.Namespace) -> None:
     from recon import mcp_server  # imported here: the MCP SDK is only needed for this command
 
@@ -205,6 +209,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--mode", choices=("live", "record", "replay"), default="live")
     p.add_argument("--cassette", type=Path, default=None)
     p.set_defaults(func=cmd_rules_eval)
+
+    p = sub.add_parser("attack-surface", help="lines where the verifier leaves an attack open")
+    p.set_defaults(func=cmd_attack_surface)
 
     p = sub.add_parser("mcp", help="serve the read-only ledger tools over MCP on stdio")
     p.set_defaults(func=cmd_mcp)
