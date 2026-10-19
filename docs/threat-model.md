@@ -30,7 +30,7 @@ What can go wrong when a language model helps reconcile bank lines, and which co
 | LLM09 Misinformation | A compiled bank rule says something the owner did not mean | Code validates every compiled rule against the account, its direction, the policy envelope and the ledger's customers; rules are not applied automatically | `tests/test_rule_compiler.py`; the rule compiler table in the README |
 | LLM07 System prompt leakage | The prompt reveals something exploitable | The prompt holds no secrets or credentials; the controls are in code, so knowing the prompt does not help an attacker | not applicable |
 | LLM10 Unbounded consumption | A line loops or a provider fails over and over | Step, token and cost limits per line; errors that would repeat on every line stop the run. There is no run-level cost cap in code; a prepaid provider balance, an account setting, caps total spend | `tests/test_agent.py` |
-| LLM03 Supply chain | A compromised dependency or CI action | Locked dependencies (`uv.lock`), GitHub Actions pinned by commit SHA, no agent framework or model router | CI runs `uv sync --locked` |
+| LLM03 Supply chain | A compromised dependency or CI action | Locked dependencies (`uv.lock`), GitHub Actions pinned by commit SHA, base images pinned by tag (not by digest), no agent framework or model router | CI runs `uv sync --locked` |
 
 ## What remains
 

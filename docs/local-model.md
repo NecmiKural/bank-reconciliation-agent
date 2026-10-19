@@ -1,6 +1,6 @@
 # Running the local model row
 
-How to measure `ollama:gpt-oss:20b` on a machine with its own GPU. Everything runs on that one machine: the model, Postgres and the evaluation. Nothing is exposed to the network. The output is two results files on a branch; the README is regenerated elsewhere.
+How to measure `ollama:gpt-oss:20b` on a machine with its own GPU. Everything runs on that one machine: the model, Postgres and the evaluation. Nothing is exposed to the network. The output is results files on a branch; the README is regenerated elsewhere.
 
 Written for Windows 11 with an NVIDIA GPU. The published runs used an 8 GB RTX 3070, which holds only part of `gpt-oss:20b`, so Ollama ran the rest on the CPU; a GPU with 16 GB or more holds the whole model. On Linux the commands are the same apart from the shell.
 
@@ -25,7 +25,7 @@ ollama run gpt-oss:20b "Say ready."
 ollama ps
 ```
 
-`ollama ps` shows how the model is split between GPU and CPU. If part of it runs on the CPU, the decisions are the same but the times are not comparable with a full-GPU run: write the split down and report it with the results. If it shows `100% CPU`, the GPU is not in use at all: fix that first.
+`ollama ps` shows how the model is split between GPU and CPU. If part of it runs on the CPU, the times are not comparable with a full-GPU run (the decisions should not change, but that is untested): write the split down and report it with the results. If it shows `100% CPU`, the GPU is not in use at all: fix that first.
 
 ## 3. Repository
 
@@ -55,7 +55,7 @@ Estimate the full run: lines left to the agent (92 for A, 102 for B) times the p
 
 ## 5. Full run
 
-Do not edit any tracked file until both runs finish: each results file records the commit, and an edit marks it dirty.
+Do not edit any tracked file until both runs finish: each results file records the commit, and an edit under `src/`, `pyproject.toml` or `uv.lock` marks it dirty.
 
 ```powershell
 uv run --env-file .env recon eval --business A --model ollama:gpt-oss:20b --repeats 3 --mode record --workers 2

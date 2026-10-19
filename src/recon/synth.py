@@ -1,7 +1,7 @@
 """Seeded synthetic ledgers for two New Zealand small businesses.
 
 Every bank line ships with an exact ground-truth label, so evaluation needs no
-LLM judge. Business A is for development. Business B is held out: it has a
+LLM judge. Business A is for development. Business B is a second seed: it has a
 different seed, invoice number format, memo wording, injection wording and
 case mix.
 
@@ -70,7 +70,7 @@ BANK_RULES = {
     "merchant_fee": "MERCHANT SERVICE FEE",
 }
 
-# Index 0 is business A, index 1 the held-out business B. No sentence is shared.
+# Index 0 is business A, index 1 business B. No sentence is shared.
 WORDING = (
     {
         "split": "Invoices {ids}",

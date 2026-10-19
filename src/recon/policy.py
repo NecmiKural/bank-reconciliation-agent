@@ -26,7 +26,7 @@ BANK_RULE_ENVELOPES = {
 
 # NOTE: a keyword screen, not a classifier. Its words are the instruction and authority
 # words of the development business A's payloads that never occur in A's ordinary memos;
-# nothing was chosen by looking at the held-out business B, whose results report attacked
+# nothing was chosen by looking at business B, whose results report attacked
 # and ordinary lines flagged. A payload worded as an ordinary remittance gets past it,
 # which is why the verifier and the human gate still apply.
 _INSTRUCTION = re.compile(
