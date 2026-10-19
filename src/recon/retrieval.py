@@ -1,9 +1,11 @@
 """Candidate-search ablation: does vector or hybrid search find the right invoices better
 than trigram matching on the payer name?
 
-No language model is involved, only embeddings. For every bank line that has a matching
+No chat model is involved, only an embedding model. For every bank line that has a matching
 invoice, all open invoices issued by the posting date are ranked by each method and the
-ranks of the labelled invoices are scored. Two query sets are used: the payee as the bank
+ranks of the labelled invoices are scored. Every method puts exact-amount invoices first, as
+the agent's search does, so the name only orders the rest: on a line whose amount matches one
+open invoice, all methods agree. Two query sets are used: the payee as the bank
 wrote it, and a stress set of renamed payees ("&" for "AND", initials, word order, legal
 suffixes) that the generator never produces, so the second set is a test of name matching
 alone. The reference field is ignored here to isolate the name.
