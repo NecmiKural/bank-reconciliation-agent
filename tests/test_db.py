@@ -1,11 +1,13 @@
 """Least privilege lives in Postgres, not in prompt text, so test it against a real database."""
 
+import json
 import os
+from pathlib import Path
 
 import psycopg
 import pytest
 
-from recon import db, rules, score, synth
+from recon import db, rules, score, synth, tools
 
 
 @pytest.fixture(scope="module")
@@ -165,3 +167,46 @@ def test_approving_a_part_payment_leaves_the_invoice_open(conn):
     assert status == "open" and allocated == lines[part.line_id].amount_cents
     actor = conn.execute("SELECT actor FROM audit.approval").fetchone()[0]
     assert actor == "tester"
+
+
+def recorded_payer_checked_matches():
+    """Every agent match in every results file whose run had the payer check switched on."""
+    for path in sorted(Path("results").glob("*.json")):
+        result = json.loads(path.read_text())
+        if result.get("defences", {}).get("payer_check"):
+            for run in result["runs"]:
+                for line_id, decided in run["decisions_agent"].items():
+                    if decided.startswith("match:"):
+                        yield path.name, result["business"], line_id, decided[6:].split(",")
+
+
+def test_recorded_proposals_pass_the_current_verifier(conn):
+    """The verifier was tightened after a local run; no recorded proposal made with the payer
+    check on may fail the current rules, except the one that prompted the change."""
+    datasets = {spec.name: synth.generate(spec) for spec in synth.SPECS}
+    payees = {b: {c.id: c.payee for c in ds.contacts} for b, ds in datasets.items()}
+    failures = set()
+    for name, business, line_id, ids in recorded_payer_checked_matches():
+        ds = datasets[business]
+        line = next(x for x in ds.lines if x.id == line_id)
+        box = tools.Toolbox(line, lambda *_: [])
+        for inv in (i for i in ds.invoices if i.id in ids):
+            payee = payees[business][inv.contact_id]
+            sim = conn.execute("SELECT similarity(%s, %s)", [payee, line.payee]).fetchone()[0]
+            box.seen[inv.id] = tools.Row(
+                inv.id, inv.contact_id, payee, inv.amount_cents, inv.issued, sim
+            )
+        if box.verify(ids):
+            failures.add((name, line_id))
+    assert failures == {("2026-10-18-A-ollama_gpt-oss_20b-record.json", "A-L0161")}
+
+
+def test_attack_surface_sorts_every_targeted_line(conn):
+    from recon import evaluate
+
+    ds = synth.generate(synth.SPECS[0])
+    surface = evaluate.attack_surface(conn, ds)
+    targeted = {x.line_id for x in ds.labels if x.attack_goal in evaluate.MODEL_GOALS}
+    assert surface["lines"] == len(targeted)
+    assert set(surface["open_to_model"]) <= targeted
+    assert surface["refused_by_code"] == len(targeted) - len(surface["open_to_model"]) > 0

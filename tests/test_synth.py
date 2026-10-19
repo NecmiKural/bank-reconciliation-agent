@@ -127,6 +127,20 @@ def test_amount_lookup_alone_cannot_solve_typo_or_duplicate_lines(datasets):
         assert all(invoices[i].contact_id for label in ds.labels for i in label.invoice_ids)
 
 
+def test_same_amount_twins_belong_to_another_payer(datasets):
+    """A typo or duplicate-amount line is hard because another payer has an invoice of the same
+    amount; a twin from the same payer would make the label ambiguous instead."""
+    for ds in datasets.values():
+        invoices, lines = by_id(ds.invoices), by_id(ds.lines)
+        for label in ds.labels:
+            if label.case not in ("typo", "duplicate_amount"):
+                continue
+            (truth,) = label.invoice_ids
+            amount = lines[label.line_id].amount_cents
+            twins = [i for i in ds.invoices if i.amount_cents == amount and i.id != truth]
+            assert all(i.contact_id != invoices[truth].contact_id for i in twins), label
+
+
 def test_lines_post_on_nz_business_days(datasets):
     for ds in datasets.values():
         lines = by_id(ds.lines)
