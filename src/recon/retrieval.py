@@ -18,6 +18,7 @@ import json
 import os
 import random
 import re
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -34,6 +35,7 @@ from recon import db, synth
 METHODS = ("trigram", "fts", "vector", "rrf")
 RRF_K = 60
 KS = (5, 10, 25)
+MAX_RATE_LIMITS = 8
 
 Embedder = Callable[[list[str]], dict[str, list[float]]]
 
@@ -77,6 +79,10 @@ WHERE i.issued <= %(posted)s
 """
 
 
+class QuotaExhausted(RuntimeError):
+    pass
+
+
 def gemini_embedder(spec: EmbeddingSpec, cache_path: Path) -> Embedder:
     """Embeddings through the OpenAI-compatible endpoint, cached on disk by text."""
     cache: dict[str, list[float]] = (
@@ -86,20 +92,33 @@ def gemini_embedder(spec: EmbeddingSpec, cache_path: Path) -> Embedder:
 
     def embed(texts: list[str]) -> dict[str, list[float]]:
         todo = sorted({t for t in texts if t not in cache})
-        for start in range(0, len(todo), spec.batch):
-            batch = todo[start : start + spec.batch]
-            while True:
-                try:
-                    response = client.embeddings.create(
-                        model=spec.name, input=batch, dimensions=spec.dims
-                    )
-                    break
-                except openai.RateLimitError:
-                    time.sleep(62)  # free tier: one minute window
+        size, failures = spec.batch, 0
+        while todo:
+            batch = todo[:size]
+            try:
+                response = client.embeddings.create(
+                    model=spec.name, input=batch, dimensions=spec.dims
+                )
+            except openai.RateLimitError as error:
+                if "PerDay" in str(error.body):
+                    # Every text in a request counts against the daily quota, so retrying
+                    # only spends what is left of it.
+                    raise QuotaExhausted(f"daily quota for {spec.name} used up") from error
+                # Per-minute limits: a large batch can fail every time at full size, so
+                # wait, then halve it.
+                failures += 1
+                if failures > MAX_RATE_LIMITS:
+                    raise
+                size = max(1, size // 2) if failures > 1 else size
+                print(f"rate limited; waiting 62 s, next batch {size}", file=sys.stderr)
+                time.sleep(62)
+                continue
+            failures = 0
             cache.update({t: d.embedding for t, d in zip(batch, response.data, strict=True)})
             cache_path.parent.mkdir(parents=True, exist_ok=True)
             cache_path.write_text(json.dumps(cache))
-            if start + spec.batch < len(todo):
+            todo = todo[len(batch) :]
+            if todo:
                 time.sleep(60 * len(batch) / spec.per_minute + 2)
         return {t: cache[t] for t in texts}
 

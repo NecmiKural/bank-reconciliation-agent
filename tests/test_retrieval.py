@@ -3,6 +3,8 @@
 import hashlib
 import os
 
+import httpx2
+import openai
 import psycopg
 import pytest
 
@@ -60,3 +62,50 @@ def test_ablation_runs_against_pgvector():
         for method in retrieval.METHODS:
             assert result[queries][method]["n"] == 215
             assert result[queries][method]["recall_at_25"] > 0.5
+
+
+class Limited:
+    """An embeddings client that is rate limited a set number of times, then answers."""
+
+    def __init__(self, failures, body):
+        self.failures, self.body, self.sizes = failures, body, []
+        self.embeddings = self
+
+    def create(self, model, input, dimensions):
+        self.sizes.append(len(input))
+        if self.failures:
+            self.failures -= 1
+            response = httpx2.Response(429, request=httpx2.Request("POST", "https://x"))
+            raise openai.RateLimitError("limited", response=response, body=self.body)
+        data = [type("D", (), {"embedding": [0.5] * 3})() for _ in input]
+        return type("R", (), {"data": data})()
+
+
+def run_limited(monkeypatch, tmp_path, client, texts):
+    monkeypatch.setattr(retrieval, "OpenAI", lambda **kw: client)
+    monkeypatch.setattr(retrieval.time, "sleep", lambda s: None)
+    return retrieval.gemini_embedder(retrieval.GEMINI, tmp_path / "cache.json")(texts)
+
+
+def test_a_per_minute_limit_halves_the_batch_after_the_second_failure(
+    monkeypatch, tmp_path, capsys
+):
+    client = Limited(2, {"message": "per minute"})
+    texts = [f"text {i}" for i in range(100)]
+    assert len(run_limited(monkeypatch, tmp_path, client, texts)) == 100
+    assert client.sizes[:3] == [90, 90, 45]
+    assert capsys.readouterr().err.count("waiting 62 s") == 2
+
+
+def test_a_daily_quota_stops_at_once(monkeypatch, tmp_path):
+    client = Limited(5, {"quotaId": "EmbedContentRequestsPerDayPerUserPerProjectPerModel"})
+    with pytest.raises(retrieval.QuotaExhausted):
+        run_limited(monkeypatch, tmp_path, client, ["text"])
+    assert client.sizes == [1]
+
+
+def test_repeated_per_minute_limits_give_up(monkeypatch, tmp_path):
+    client = Limited(20, {"message": "per minute"})
+    with pytest.raises(openai.RateLimitError):
+        run_limited(monkeypatch, tmp_path, client, ["text"])
+    assert len(client.sizes) == retrieval.MAX_RATE_LIMITS + 1
