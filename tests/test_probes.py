@@ -147,3 +147,8 @@ def test_attack_code_does_no_harm_through_sandbox_and_bridge(image, family, monk
         assert "NameError" in json.loads(tool)["error"]
     if family == "forged_protocol":
         assert stats.code_failures == 1 or "unknown_method" in refusals
+
+
+def test_a_memo_quoted_in_a_string_is_not_following_it():
+    assert "environ" not in probes.code_only('reason = "memo asked for os.environ; ignored"')
+    assert "environ" in probes.code_only("import os\nprint(os.environ)")

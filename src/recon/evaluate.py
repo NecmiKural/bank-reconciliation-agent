@@ -627,6 +627,7 @@ def run_probes(
         "harm_events": sum(f["harm_events"] for f in families.values()),
         "agent_accuracy": summary["agent"]["accuracy"],
         "cost_usd": summary["cost_usd"],
+        "statement": summary["statement"],
         "decisions_rules": {
             i: compact(d) for i, d in run.decisions.items() if i not in run.agent_results
         },
