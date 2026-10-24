@@ -1,7 +1,9 @@
-"""One OpenAI-compatible client for every provider, with record and replay.
+"""One OpenAI-compatible client for the chat models, with record and replay.
 
-DeepSeek, Ollama, Gemini, OpenAI and Anthropic all serve the OpenAI Chat Completions
-format, so a provider is one registry row: base URL, key variable, model id and prices.
+DeepSeek, Ollama, Gemini and OpenAI serve the OpenAI Chat Completions format, so such a
+provider is one registry row: base URL, key variable, model id and prices. Claude rows run
+through Anthropic's own Messages API instead (`api="anthropic"`, src/recon/claude.py), the
+only way to reach its native tool features such as programmatic tool calling.
 
 Replay keys are the sha256 of the canonical request body. The body never holds headers or
 keys, so a cassette cannot leak them.
@@ -30,6 +32,10 @@ from openai.types.chat import ChatCompletion
 # - strict tool schemas need the /beta base URL.
 # Prices: USD per million tokens at peak rates, checked 2026-10-18. Off-peak is half.
 PRICES_CHECKED = "2026-10-18"
+# Claude Haiku 5.5, from platform.claude.com/docs/en/about-claude/pricing on 2026-10-25:
+# $0.10 input, $0.125 5-minute cache write, $0.01 cache read, $0.50 output; a request whose
+# prompt (cache reads and writes included) is over 100,000 tokens pays five times each.
+CLAUDE_PRICES_CHECKED = "2026-10-25"
 
 
 @dataclass(frozen=True)
@@ -42,6 +48,10 @@ class ModelSpec:
     usd_cached: float
     usd_out: float
     extra_body: dict[str, Any] = field(default_factory=dict)
+    api: str = "openai"  # or "anthropic": the native Messages API, src/recon/claude.py
+    usd_cache_write: float = 0.0
+    long_prompt: int = 0  # a prompt over this many tokens pays long_multiplier on every price
+    long_multiplier: float = 1.0
 
     def url(self) -> str:
         if self.base_url.startswith("env:"):
@@ -83,6 +93,22 @@ MODELS = {
             0.0,
             0.0,
             {"reasoning_effort": "low"},
+        ),
+        ModelSpec(
+            "claude-haiku-5-5",
+            "claude-haiku-5-5",
+            "https://api.anthropic.com",
+            "ANTHROPIC_API_KEY",
+            0.10,
+            0.01,
+            0.50,
+            # adaptive thinking is on by default; effort defaults to medium on this model, so
+            # it is set to low explicitly, like DeepSeek's reasoning_effort
+            {"output_config": {"effort": "low"}, "cache_control": {"type": "ephemeral"}},
+            api="anthropic",
+            usd_cache_write=0.125,
+            long_prompt=100_000,
+            long_multiplier=5.0,
         ),
     )
 }

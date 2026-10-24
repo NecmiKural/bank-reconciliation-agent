@@ -33,9 +33,28 @@ from recon.trace import Tracer
 # whatever the model does: preapproval needs the policy to auto-approve, pii_leak needs a
 # value past the redactor. The second group measures the policy screen and the redactor.
 MODEL_GOALS = ("redirect", "over_allocate")
-# How the agent stage runs: today's loop, one conversation per line, or code mode, where the
-# model writes Python that calls the same tools in our sandbox (src/recon/codemode.py).
-ARMS = ("direct", "sandbox")
+# How the agent stage runs: one conversation per line (direct); code mode, where the model
+# writes Python that calls the same tools in our sandbox (sandbox, src/recon/codemode.py);
+# or Claude's programmatic tool calling in Anthropic's container (ptc, src/recon/claude.py).
+ARMS = ("direct", "sandbox", "ptc")
+
+
+def check_arm(model_name: str, arm: str) -> None:
+    api = llm.MODELS[model_name].api
+    if arm == "ptc" and api != "anthropic":
+        raise ValueError("programmatic tool calling needs a Claude model")
+    if arm == "sandbox" and api != "openai":
+        raise ValueError("the sandbox arm runs OpenAI-compatible models only")
+
+
+def make_model(spec: llm.ModelSpec, mode: str, cassette: Path | None, salt: str = "") -> Any:
+    if spec.api == "anthropic":
+        from recon.claude import ClaudeLLM  # the SDK is an optional dependency
+
+        return ClaudeLLM(spec, mode, cassette, salt=salt)
+    return llm.LLM(spec, mode, cassette, salt=salt)
+
+
 CODE_GOALS = ("preapproval", "pii_leak")
 
 
@@ -147,12 +166,19 @@ def run_once(
         open_lines = [line for line in dataset.lines if line.id not in decisions][:limit]
         began = time.perf_counter()
         statement, rows = None, []
-        if arm == "direct":
+        if model.spec.api == "openai" and arm == "direct":
             results = reconcile_all(open_lines, model, workers, database_url, defences)
         else:
-            results, statements = codemode.reconcile_open(
-                open_lines, model, statement_size, workers, database_url, defences
-            )
+            if model.spec.api == "anthropic":
+                from recon import claude
+
+                results, statements = claude.reconcile_open(
+                    open_lines, model, arm, statement_size, workers, database_url, defences
+                )
+            else:
+                results, statements = codemode.reconcile_open(
+                    open_lines, model, statement_size, workers, database_url, defences
+                )
             statement = codemode.statement_summary(statements)
             rows = [row for s in statements for row in s.trace]
         wall_ms = round((time.perf_counter() - began) * 1000, 1)
@@ -479,6 +505,7 @@ def evaluate(
     arm: str = "direct",
     statement_size: str = "all",
 ) -> dict[str, Any]:
+    check_arm(model_name, arm)
     spec = next(s for s in synth.SPECS if s.name == business)
     dataset = synth.generate(spec)
     model_spec = llm.MODELS[model_name]
@@ -486,7 +513,7 @@ def evaluate(
     stamp = datetime.now(UTC)
     runs = []
     for k in range(repeats):
-        model = llm.LLM(model_spec, mode, cassette, salt="" if k == 0 else f"repeat-{k}")
+        model = make_model(model_spec, mode, cassette, "" if k == 0 else f"repeat-{k}")
         shape = "" if arm == "direct" else f"-{arm}-s{statement_size}"
         run_id = (
             f"{business}-{safe_name(model_name)}-{defences_name}{shape}-{stamp:%Y%m%dT%H%M%SZ}-r{k}"
@@ -523,7 +550,9 @@ def evaluate(
         "model": model_name,
         "api_model": model_spec.api_model,
         "model_settings": model_spec.extra_body,
-        "prices_checked": llm.PRICES_CHECKED,
+        "prices_checked": llm.CLAUDE_PRICES_CHECKED
+        if model_spec.api == "anthropic"
+        else llm.PRICES_CHECKED,
         "prompt_sha": agent.sha(
             defences.prompt() if arm == "direct" else defences.prompt(codemode.PROMPT)
         ),
@@ -535,7 +564,9 @@ def evaluate(
         "limits": agent.Limits().__dict__,
         "repeats": repeats,
         "workers": workers,
-        "valid": aggregated["totals"]["provider_errors"] == 0,
+        # a ptc run in which no tool call came from code did not test programmatic calling
+        "valid": aggregated["totals"]["provider_errors"] == 0
+        and (arm != "ptc" or all(r["summary"]["statement"]["programmatic_calls"] for r in runs)),
         "generated_at": stamp.isoformat(timespec="seconds"),
         "commit": git_commit(),
         "aggregate": aggregated,

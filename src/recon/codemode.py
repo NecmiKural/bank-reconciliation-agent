@@ -104,6 +104,9 @@ class Statement:
     wall_ms: float = 0.0
     cells: int = 0
     code_failures: int = 0
+    programmatic_calls: int = 0  # Claude: tool calls made from code in Anthropic's container
+    containers: int = 0
+    cache_write_tokens: int = 0
     ended: str = ""
     trace: list[dict[str, Any]] = field(default_factory=list)
 
@@ -296,6 +299,9 @@ def statement_summary(statements: list[Statement]) -> dict[str, Any]:
         "model_requests": sum(s.steps for s in statements),
         "cells": sum(s.cells for s in statements),
         "code_failures": sum(s.code_failures for s in statements),
+        "programmatic_calls": sum(s.programmatic_calls for s in statements),
+        "containers": sum(s.containers for s in statements),
+        "cache_write_tokens": sum(s.cache_write_tokens for s in statements),
         "input_tokens": input_tokens,
         "cached_tokens": cached,
         "output_tokens": sum(s.output_tokens for s in statements),

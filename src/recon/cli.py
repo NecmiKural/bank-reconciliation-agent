@@ -58,7 +58,10 @@ def cmd_run(args: argparse.Namespace) -> None:
     cassette = args.cassette or default_cassette(
         args.business, args.model, args.arm, args.statement_size
     )
-    model = llm.LLM(llm.MODELS[args.model], args.mode, None if args.mode == "live" else cassette)
+    evaluate.check_arm(args.model, args.arm)
+    model = evaluate.make_model(
+        llm.MODELS[args.model], args.mode, None if args.mode == "live" else cassette
+    )
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     run_id = f"{args.business}-{evaluate.safe_name(args.model)}-{stamp}"
     defences = agent.DEFENCES[args.defences]
@@ -223,7 +226,8 @@ def main(argv: list[str] | None = None) -> None:
             "--arm",
             choices=evaluate.ARMS,
             default="direct",
-            help="direct: one conversation per line; sandbox: code mode in our sandbox",
+            help="direct: one conversation per line; sandbox: code mode in our sandbox;"
+            " ptc: Claude's programmatic tool calling",
         )
         p.add_argument(
             "--statement-size",

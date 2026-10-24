@@ -99,7 +99,8 @@ def test_committed_recordings_hold_no_secrets_or_personal_data(name):
     planted = evaluate.planted_pii(synth.generate(synth.SPECS[0]))
     for path in (CASSETTES / f"{name}.jsonl", CASSETTES / f"{name}.json"):
         text = path.read_text()
-        assert not re.search(r"\bsk-[A-Za-z0-9]{16,}|Bearer |[Aa]uthorization", text), path
+        secret = r"\bsk-[A-Za-z0-9_-]{16,}|x-api-key|Bearer |[Aa]uthorization"
+        assert not re.search(secret, text), path
         assert not [value for value in planted if value in text], path
 
 

@@ -161,7 +161,7 @@ The agent finds candidates by trigram similarity on the payer name in Postgres. 
 
 ### Provider-agnostic
 
-DeepSeek, Ollama, Gemini, OpenAI and Anthropic all serve the OpenAI Chat Completions format, so a provider is one row in [llm.py](src/recon/llm.py): base URL, key variable, model id and prices. The results above use two DeepSeek hosted models and a local `gpt-oss:20b` on Ollama, and Gemini for embeddings; OpenAI and Anthropic rows are not configured. Only synthetic data is ever sent to a provider.
+DeepSeek, Ollama, Gemini and OpenAI serve the OpenAI Chat Completions format, so such a provider is one row in [llm.py](src/recon/llm.py): base URL, key variable, model id and prices. Claude runs through Anthropic's own Messages API ([claude.py](src/recon/claude.py), installed with `uv sync --extra claude`), the only way to reach programmatic tool calling; its row in the same registry carries Claude Haiku 5.5's two price cards. The results above use two DeepSeek hosted models and a local `gpt-oss:20b` on Ollama, and Gemini for embeddings. Only synthetic data is ever sent to a provider.
 
 ## Security
 
