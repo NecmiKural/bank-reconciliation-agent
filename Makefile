@@ -18,9 +18,12 @@ eval: db
 
 # Re-record the 40-line slice that CI replays. Needed after any change to prompts, tools or data.
 record-slice: db
-	rm -f tests/cassettes/A-slice.jsonl
+	rm -f tests/cassettes/A-slice.jsonl tests/cassettes/A-slice-sandbox.jsonl
 	uv run --env-file .env recon eval --business A --repeats 1 --limit 40 --mode record \
 		--cassette tests/cassettes/A-slice.jsonl --out tests/cassettes --name A-slice
+	uv run --env-file .env recon eval --business A --repeats 1 --limit 40 --mode record \
+		--arm sandbox --statement-size all --cassette tests/cassettes/A-slice-sandbox.jsonl \
+		--out tests/cassettes --name A-slice-sandbox
 
 # Offline: replays the committed slice, no key needed.
 demo: db
