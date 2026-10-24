@@ -23,7 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from recon import agent, codemode, db, llm, policy, rules, score, synth, tools
+from recon import agent, codemode, db, llm, policy, probes, rules, score, synth, tools
 from recon.policy import Verdict
 from recon.score import Decision, wilson
 from recon.trace import Tracer
@@ -66,6 +66,7 @@ class Run:
     outbound_leaks: set[str] = field(default_factory=set)
     statement: dict[str, Any] | None = None  # code mode: totals over the run's statements
     agent_wall_ms: float = 0.0
+    statement_rows: list[dict[str, Any]] = field(default_factory=list)  # code mode's trace
 
 
 def safe_name(text: str) -> str:
@@ -188,7 +189,7 @@ def run_once(
     tracer = Tracer(trace_dir / run_id / "trace.jsonl" if trace_dir else None)
     for row in rows + [row for result in results.values() for row in result.trace]:
         tracer.emit({"recon.run_id": run_id, **row})
-    return Run(decisions, verdicts, results, leaks, statement, wall_ms)
+    return Run(decisions, verdicts, results, leaks, statement, wall_ms, rows)
 
 
 def block(k: int, n: int) -> dict[str, Any]:
@@ -572,6 +573,73 @@ def evaluate(
         "aggregate": aggregated,
         "runs": runs,
     }
+
+
+def open_line_ids(dataset: synth.Dataset, database_url: str | None = None) -> set[str]:
+    """The lines the rules pass leaves to the agent."""
+    with db.connect(database_url) as conn:
+        db.reset(conn, dataset)
+        closed = rules.run(conn)
+    return {line.id for line in dataset.lines if line.id not in closed}
+
+
+def run_probes(
+    business: str,
+    model_name: str,
+    arm: str = "sandbox",
+    statement_size: str = "all",
+    mode: str = "live",
+    cassette: Path | None = None,
+    workers: int = 8,
+    database_url: str | None = None,
+    trace_dir: Path | None = Path("runs"),
+) -> dict[str, Any]:
+    """One run over a business with the probe sentences overlaid (src/recon/probes.py)."""
+    check_arm(model_name, arm)
+    spec = next(s for s in synth.SPECS if s.name == business)
+    dataset = synth.generate(spec)
+    probed, chosen = probes.overlay(dataset, open_line_ids(dataset, database_url))
+    model_spec = llm.MODELS[model_name]
+    model = make_model(model_spec, mode, cassette)
+    stamp = datetime.now(UTC)
+    shape = "" if arm == "direct" else f"-{arm}-s{statement_size}"
+    run_id = f"{business}-{safe_name(model_name)}-probes{shape}-{stamp:%Y%m%dT%H%M%SZ}"
+    defences = agent.DEFENCES["on"]
+    run = run_once(
+        probed, model, run_id, None, workers, database_url, trace_dir, defences, arm, statement_size
+    )
+    summary, _ = summarize(probed, run)
+    families = probes.outcomes(probed, chosen, run.decisions, run.statement_rows)
+    return {
+        "probes": True,
+        "business": business,
+        "dataset_fingerprint": fingerprint(dataset),
+        "probe_fingerprint": fingerprint(probed),
+        "model": model_name,
+        "arm": arm,
+        "statement_size": None if arm == "direct" else statement_size,
+        "mode": mode,
+        "generated_at": stamp.isoformat(timespec="seconds"),
+        "commit": git_commit(),
+        "valid": summary["provider_errors"] == 0,
+        "probe_lines": chosen,
+        "families": families,
+        "harm_events": sum(f["harm_events"] for f in families.values()),
+        "agent_accuracy": summary["agent"]["accuracy"],
+        "cost_usd": summary["cost_usd"],
+        "decisions_rules": {
+            i: compact(d) for i, d in run.decisions.items() if i not in run.agent_results
+        },
+    }
+
+
+def write_probes(result: dict[str, Any], out_dir: Path) -> Path:
+    shape = "" if result["arm"] == "direct" else f"-{result['arm']}-s{result['statement_size']}"
+    name = f"{result['generated_at'][:10]}-probes-{result['business']}-{result['model']}{shape}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"{safe_name(name)}.json"
+    path.write_text(json.dumps(result, indent=1, sort_keys=True) + "\n")
+    return path
 
 
 SURFACE_SQL = """

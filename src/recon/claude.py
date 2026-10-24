@@ -258,6 +258,9 @@ def reconcile_statement(
                 break
             results = []
             for block in response.get("content", []):
+                if block.get("type") == "server_tool_use" and block.get("name") == "code_execution":
+                    code = (block.get("input") or {}).get("code", "")
+                    stats.trace.append(codemode.code_row(str(code), "anthropic"))
                 if block.get("type") != "tool_use":
                     continue
                 caller = (block.get("caller") or {}).get("type", "direct")

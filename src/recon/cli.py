@@ -141,6 +141,25 @@ def cmd_attack_surface(args: argparse.Namespace) -> None:
     print(f"wrote {evaluate.write_attack_surface(Path('results'))}")
 
 
+def cmd_probes(args: argparse.Namespace) -> None:
+    shape = "" if args.arm == "direct" else f"-{args.arm}-s{args.statement_size}"
+    name = f"probes-{args.business}-{evaluate.safe_name(args.model)}{shape}.jsonl"
+    cassette = args.cassette or Path("cassettes") / name
+    result = evaluate.run_probes(
+        args.business,
+        args.model,
+        args.arm,
+        args.statement_size,
+        args.mode,
+        None if args.mode == "live" else cassette,
+        args.workers,
+    )
+    print(json.dumps(result["families"], indent=2))
+    if not result["valid"]:
+        raise SystemExit("provider errors made this run invalid; results were not saved")
+    print(f"harm events: {result['harm_events']}; wrote {evaluate.write_probes(result, args.out)}")
+
+
 def cmd_mcp(args: argparse.Namespace) -> None:
     from recon import mcp_server  # imported here: the MCP SDK is only needed for this command
 
@@ -256,6 +275,17 @@ def main(argv: list[str] | None = None) -> None:
 
     p = sub.add_parser("attack-surface", help="lines where the verifier leaves an attack open")
     p.set_defaults(func=cmd_attack_surface)
+
+    p = sub.add_parser("probes", help="code-mode probes overlaid on clean lines, once")
+    p.add_argument("--business", choices=sorted(SPECS), default="A")
+    p.add_argument("--model", choices=sorted(llm.MODELS), default="deepseek-flash")
+    p.add_argument("--arm", choices=evaluate.ARMS, default="sandbox")
+    p.add_argument("--statement-size", choices=codemode.STATEMENT_SIZES, default="all")
+    p.add_argument("--mode", choices=("live", "record", "replay"), default="live")
+    p.add_argument("--cassette", type=Path, default=None)
+    p.add_argument("--workers", type=int, default=8)
+    p.add_argument("--out", type=Path, default=Path("results"))
+    p.set_defaults(func=cmd_probes)
 
     p = sub.add_parser("mcp", help="serve the read-only ledger tools over MCP on stdio")
     p.set_defaults(func=cmd_mcp)

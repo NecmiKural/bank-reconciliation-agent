@@ -151,6 +151,7 @@ class Bridge:
         with self._lock:
             refusal, outcome = self._handle(name, args)
             line_id = args.get("line_id") if isinstance(args, dict) else None
+            ids = args.get("invoice_ids") if isinstance(args, dict) else None
             self.trace.append(
                 {
                     "gen_ai.operation.name": "execute_tool",
@@ -159,6 +160,9 @@ class Bridge:
                     "recon.line_id": line_id if isinstance(line_id, str) else None,
                     "recon.caller": caller,
                     "recon.refusal": refusal,
+                    "recon.invoice_ids": [i[:40] for i in ids[:25] if isinstance(i, str)]
+                    if isinstance(ids, list)
+                    else None,
                 }
             )
             return json.dumps(outcome, sort_keys=True)

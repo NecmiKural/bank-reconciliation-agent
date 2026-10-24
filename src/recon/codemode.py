@@ -201,6 +201,21 @@ def reconcile_statement(
     return {i: LineResult(decision=d) for i, d in decisions.items()}, stats
 
 
+def code_row(
+    code: str, where: str, error: str | None = None, killed: bool = False, truncated: bool = False
+) -> dict[str, Any]:
+    """The code a model ran, for the local trace and the probes. Traces stay in runs/, which
+    is not committed; the code is in the recorded model replies anyway."""
+    return {
+        "gen_ai.operation.name": "execute_code",
+        "recon.where": where,
+        "recon.code": code[:8000],
+        "recon.error": (error or "")[:500] or None,
+        "recon.killed": killed,
+        "recon.truncated": truncated,
+    }
+
+
 def run_call(
     call: Any,
     box: Sandbox,
@@ -223,6 +238,7 @@ def run_call(
     cell = box.run(code, lambda method, params: bridge.handle(method, params, "sandbox"))
     stats.cells += 1
     stats.sandbox_ms += cell.exec_ms
+    stats.trace.append(code_row(code, "sandbox", cell.error, cell.killed, cell.truncated))
     restarted = False
     if cell.error:
         stats.code_failures += 1

@@ -31,13 +31,16 @@ MARKERS = {
     "retrieval": "retrieval",
     "rules": "rules",
     "attack_surface": "attack_surface",
+    "probes": "probes",
 }
 
 
 def load(results_dir: Path, kind: str = "runs") -> list[dict[str, Any]]:
-    """Results files of one kind, told apart by a key only that kind has."""
+    """Results files of one kind, told apart by a key only that kind has (a probe run also
+    names its business, so runs are the files with a business and no probes key)."""
     files = [json.loads(p.read_text()) for p in sorted(results_dir.glob("*.json"))]
-    return [f for f in files if MARKERS[kind] in f]
+    found = [f for f in files if MARKERS[kind] in f]
+    return [f for f in found if "probes" not in f] if kind == "runs" else found
 
 
 def per_line(result: dict) -> bool:
