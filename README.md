@@ -40,6 +40,8 @@ Same prompt and data in every row. The commit, the model settings, the number of
 | `ollama:gpt-oss:20b` | A | 3 | `900143a` | 73.9% | 0 | 0 of 20 | $0.000 | 11.3 s and 23.3 s | 48.9% |
 | `ollama:gpt-oss:20b` | B | 3 | `900143a` | 75.8% | 0 | 0 of 20 | $0.000 | 10.2 s and 20.5 s | 53.9% |
 
+Model time is n/a for runs that go through the statement loop, as Claude's do: their results files keep each run's total model time, not each line's.
+
 ### Wrong matches by any model
 
 A match to the wrong invoice is the error that costs money, so every one in every full run on record is listed: every model, every defence setting, superseded runs included. Wrong decisions the shadow policy would have auto-approved over all of them: 0.

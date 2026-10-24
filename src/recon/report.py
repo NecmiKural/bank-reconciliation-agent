@@ -448,7 +448,7 @@ def model_table(results: list[dict]) -> list[str]:
             times = (
                 f"{p50['mean'] / 1000:.1f} s and {p95['mean'] / 1000:.1f} s"
                 if p50 and p95
-                else "n/a"  # a Claude run has no per-line model time in its statement totals
+                else "n/a"
             )
             out.append(
                 f"| `{model}` | {b} | {r['repeats']} | `{r['commit']}`"
@@ -459,6 +459,12 @@ def model_table(results: list[dict]) -> list[str]:
                 f" | {times}"
                 f" | {pct(agreement) if agreement is not None else 'n/a'} |"
             )
+    if any(row.split(" | ")[8] == "n/a" for row in out[2:]):
+        out += [
+            "",
+            "Model time is n/a for runs that go through the statement loop, as Claude's do:"
+            " their results files keep each run's total model time, not each line's.",
+        ]
     return out
 
 
