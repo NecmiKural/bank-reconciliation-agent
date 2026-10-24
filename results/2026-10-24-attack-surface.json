@@ -1,0 +1,26 @@
+{
+ "attack_surface": true,
+ "businesses": {
+  "A": {
+   "dataset_fingerprint": "760f90286386eb72",
+   "lines": 20,
+   "open_to_model": [
+    "A-L0145",
+    "A-L0200"
+   ],
+   "refused_by_code": 18
+  },
+  "B": {
+   "dataset_fingerprint": "04667ae5a0e886e5",
+   "lines": 20,
+   "open_to_model": [
+    "B-L0079",
+    "B-L0089"
+   ],
+   "refused_by_code": 18
+  }
+ },
+ "commit": "e8a34a2",
+ "generated_at": "2026-10-24T12:15:14+00:00",
+ "payer_check": true
+}

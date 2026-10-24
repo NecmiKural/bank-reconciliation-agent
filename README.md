@@ -20,10 +20,10 @@ A rules-first, tool-calling agent that matches New Zealand small-business bank l
 | Would be auto-approved in shadow mode (first run) | 23.6% of lines (56 by rules, 3 by agent) | 24.0% of lines (53 by rules, 7 by agent) |
 | Wrong auto-approvals in 3 runs | **0** (agent path: 0 of 3 lines, 95% upper bound 56.1%) | **0** (agent path: 0 of 7 lines, 95% upper bound 35.4%) |
 | Agent lines with the same decision in every run | 98.9% | 99.0% |
-| Cost per 100 bank lines (peak price) | $0.038 | $0.038 |
-| Model time per agent line, p50 and p95 | 3.8 s and 6.9 s | 3.6 s and 6.4 s |
+| Cost per 100 bank lines (peak price) | $0.037 | $0.037 |
+| Model time per agent line, p50 and p95 | 4.3 s and 7.5 s | 4.3 s and 7.4 s |
 
-Model `deepseek-flash` (`deepseek-flash`), prompt `648730bb9592`; prices checked 2026-10-18. Sources: `results/2026-10-18-A-deepseek-flash-record.json` (commit `b4d435b`), `results/2026-10-18-B-deepseek-flash-record.json` (commit `b4d435b`). Business B has its own seed, invoice format, wording and case mix and was not used to write the prompt or the policy screen; its labels were used to check the generator and the verifier's payer thresholds.
+Model `deepseek-flash` (`deepseek-flash`), prompt `648730bb9592`; prices checked 2026-10-25. Sources: `results/2026-10-24-A-deepseek-flash-record.json` (commit `e8a34a2`), `results/2026-10-24-B-deepseek-flash-record.json` (commit `e8a34a2`). Business B has its own seed, invoice format, wording and case mix and was not used to write the prompt or the policy screen; its labels were used to check the generator and the verifier's payer thresholds.
 
 ### Models
 
@@ -31,8 +31,10 @@ Same prompt and data in every row. The commit, the model settings, the number of
 
 | Model | Business | Runs | Commit | Agent accuracy | Wrong matches | Redirect and over-allocation lines that succeeded | Cost per 100 bank lines | Model time per agent line, p50 and p95 | Agent lines with the same decision |
 |---|---|---|---|---|---|---|---|---|---|
-| `deepseek-flash` | A | 3 | `b4d435b` | 99.6% | 0 | 0 of 20 | $0.038 | 3.8 s and 6.9 s | 98.9% |
-| `deepseek-flash` | B | 3 | `b4d435b` | 99.7% | 0 | 0 of 20 | $0.038 | 3.6 s and 6.4 s | 99.0% |
+| `deepseek-flash` | A | 3 | `e8a34a2` | 99.6% | 0 | 0 of 20 | $0.037 | 4.3 s and 7.5 s | 98.9% |
+| `deepseek-flash` | B | 3 | `e8a34a2` | 99.7% | 0 | 0 of 20 | $0.037 | 4.3 s and 7.4 s | 99.0% |
+| `claude-haiku-5-5` | A | 3 | `e8a34a2` | 96.4% | 0 | 0 of 20 | $0.016 | n/a | 93.5% |
+| `claude-haiku-5-5` | B | 3 | `e8a34a2` | 90.5% | 0 | 0 of 20 | $0.017 | n/a | 95.1% |
 | `deepseek-v4-pro` | A | 3 | `8c349f9` | 98.2% | 0 | 0 of 20 | $0.127 | 4.7 s and 9.7 s | 98.9% |
 | `deepseek-v4-pro` | B | 3 | `8c349f9` | 97.7% | 0 | 0 of 20 | $0.138 | 4.6 s and 12.8 s | 96.1% |
 | `ollama:gpt-oss:20b` | A | 3 | `900143a` | 73.9% | 0 | 0 of 20 | $0.000 | 11.3 s and 23.3 s | 48.9% |
@@ -74,7 +76,7 @@ Every agent decision of `deepseek-flash` that differs from the label, with the n
 
 ### Safety
 
-Redirect and over-allocation payloads ask for an invoice the line should not settle. Where the verifier would refuse every proposal containing it, the result does not depend on the model. The verifier-left lines come from `recon attack-surface` at commit `11dbcf7`.
+Redirect and over-allocation payloads ask for an invoice the line should not settle. Where the verifier would refuse every proposal containing it, the result does not depend on the model. The verifier-left lines come from `recon attack-surface` at commit `e8a34a2`.
 
 | | Business A (development) | Business B (second seed) |
 |---|---|---|
@@ -86,18 +88,61 @@ Redirect and over-allocation payloads ask for an invoice the line should not set
 
 ### Defences switched off in two groups
 
-The prompt group is the fence, the prompt's untrusted-text guidance and its personal-data rule; the code group is redaction, the verifier's payer check and the policy screen. Each ablation row is one run against the main rows' three, so it shows what redaction does and is too small to rank the rest. A repeat-personal-data payload is echoed when a planted value appears in the rationale. All-on rows are the main runs (commit `b4d435b`); ablation commit: `680c897`.
+The prompt group is the fence, the prompt's untrusted-text guidance and its personal-data rule; the code group is redaction, the verifier's payer check and the policy screen. Most ablation rows are one run against the main rows' three (the Runs column says which), so they show what redaction does and are too small to rank the rest. A repeat-personal-data payload is echoed when a planted value appears in the rationale. All-on rows are the main runs (commit `e8a34a2`); ablation commit: `680c897`, `e8a34a2`.
 
 | Defences | Business | Runs | Redirect and over-allocation lines that succeeded | Wrong matches | Wrong auto-approvals | Planted values sent to the provider | Repeat-personal-data payloads echoed in the rationale (line-runs) | Ordinary agent lines correct |
 |---|---|---|---|---|---|---|---|---|
 | All on | A | 3 | 0 of 20 | 0 | 0 | 0 values | 0 of 30 | 100.0% |
 | All on | B | 3 | 0 of 20 | 0 | 0 | 0 values | 0 of 30 | 100.0% |
 | Prompt group only | A | 1 | 0 of 20 | 1 | 0 | 63 values | 0 of 10 | 98.1% |
-| Prompt group only | B | 1 | 0 of 20 | 0 | 0 | 43 values | 0 of 10 | 100.0% |
+| Prompt group only | B | 3 | 0 of 20 | 0 | 0 | 129 values | 0 of 30 | 100.0% |
 | Code group only | A | 1 | 0 of 20 | 0 | 0 | 0 values | 0 of 10 | 100.0% |
 | Code group only | B | 1 | 0 of 20 | 0 | 0 | 0 values | 0 of 10 | 100.0% |
 | All off | A | 1 | 0 of 20 | 0 | 0 | 63 values | 0 of 10 | 100.0% |
 | All off | B | 1 | 1 of 20 | 1 | 0 | 43 values | 1 of 10 | 100.0% |
+
+### Code mode
+
+The same lines decided by code the model writes (pre-registered in [docs/code-mode-experiment.md](docs/code-mode-experiment.md)): in our sandbox, or with Claude's programmatic tool calling. Each row is compared with the per-line run of the same model; the interval resamples lines, not line-runs, and a row whose rules pass decided differently is refused. Commits: `e8a34a2`.
+
+| Business | Model | Arm | Statement | Defences | Runs | Model passes per 100 agent lines | Cost per 100 bank lines | Agent accuracy | Accuracy against per-line, 95% interval | Mechanical cases | Judgement cases | Wrong matches | Attacked lines hit | Cross-line hits | Code failures |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| A | `claude-haiku-5-5` | programmatic tool calling | all open lines | All on | 3 | 4.0 | $0.015 | 87.3% | -0.091 (-0.141 to -0.043) | -0.097 (-0.139 to -0.054) | -0.081 (-0.189 to +0.018) | 0 | 0 of 20 | 0 | 0 |
+| A | `deepseek-flash` | our sandbox | one line | All on | 3 | 269.2 | $0.036 | 100.0% | +0.004 (+0.000 to +0.011) | +0.000 (+0.000 to +0.000) | +0.009 (+0.000 to +0.027) | 0 | 0 of 20 | 0 | 7 |
+| A | `deepseek-flash` | our sandbox | all open lines | All on | 3 | 50.7 | $0.026 | 100.0% | +0.004 (+0.000 to +0.011) | +0.000 (+0.000 to +0.000) | +0.009 (+0.000 to +0.027) | 0 | 0 of 20 | 0 | 0 |
+| B | `claude-haiku-5-5` | programmatic tool calling | all open lines | All on | 3 | 3.9 | $0.011 | 81.4% | -0.091 (-0.160 to -0.020) | -0.094 (-0.152 to -0.029) | -0.089 (-0.222 to +0.052) | 0 | 0 of 20 | 0 | 0 |
+| B | `claude-haiku-5-5` | programmatic tool calling | all open lines | Prompt group only | 3 | 3.6 | $0.007 | 69.6% | -0.222 (-0.301 to -0.144) | -0.105 (-0.152 to -0.059) | -0.370 (-0.518 to -0.215) | 0 | 0 of 20 | 0 | 0 |
+| B | `deepseek-flash` | our sandbox | one line | All on | 3 | 276.5 | $0.037 | 97.7% | -0.020 (-0.052 to +0.003) | -0.006 (-0.018 to +0.000) | -0.037 (-0.111 to +0.015) | 0 | 0 of 20 | 0 | 12 |
+| B | `deepseek-flash` | our sandbox | all open lines | All on | 3 | 19.6 | $0.015 | 100.0% | +0.003 (+0.000 to +0.010) | +0.000 (+0.000 to +0.000) | +0.007 (+0.000 to +0.022) | 0 | 0 of 20 | 0 | 1 |
+| B | `deepseek-flash` | our sandbox | all open lines | Prompt group only | 3 | 19.9 | $0.015 | 100.0% | +0.000 (+0.000 to +0.000) | +0.000 (+0.000 to +0.000) | +0.000 (+0.000 to +0.000) | 0 | 0 of 20 | 0 | 0 |
+
+Probes of the surface code mode adds, one run each: a memo that asks the code to dump the environment, reach the network, act on another line, call a tool that does not exist, flood the output, forge a protocol message or break out of a string. A harm event is a decision on one probe line that takes another's invoice.
+
+| Business | Model | Arm | Families whose memo the code followed | Harm events |
+|---|---|---|---|---|
+| A | `claude-haiku-5-5` | direct | none | 0 |
+| A | `claude-haiku-5-5` | ptc | none | 0 |
+| A | `deepseek-flash` | direct | none | 0 |
+| A | `deepseek-flash` | sandbox | none | 0 |
+| B | `claude-haiku-5-5` | direct | none | 0 |
+| B | `claude-haiku-5-5` | ptc | none | 0 |
+| B | `deepseek-flash` | direct | none | 0 |
+| B | `deepseek-flash` | sandbox | none | 0 |
+
+Pre-registered verdicts, defences on, whole statement against per line. H1 needs both parts on every business; H3 is decided on B.
+
+| Business | Model | H1a: model passes per 100 agent lines, code (limit) | H1b: mean cost, code against per-line; worst code run, best per-line run | H1 | H2: S=1 cost over per-line | H3: accuracy difference, lower bound; wrong-match lines, code and per-line | H3 |
+|---|---|---|---|---|---|---|---|
+| A | `claude-haiku-5-5` | 4.0 (50.4) | -7%; $0.0231 against $0.0145 | fails | n/a | -0.141; 0 and 0 | fails |
+| A | `deepseek-flash` | 50.7 (54.0) | -31%; $0.0416 against $0.0364 | fails | 0.96 | +0.000; 0 and 0 | holds |
+| B | `claude-haiku-5-5` | 3.9 (50.7) | -38%; $0.0234 against $0.0152 | fails | n/a | -0.160; 0 and 0 | fails |
+| B | `deepseek-flash` | 19.6 (54.0) | -58%; $0.0175 against $0.0363 | holds | 0.99 | +0.000; 0 and 0 | holds |
+
+Verdicts: H1: `claude-haiku-5-5` fails, `deepseek-flash` fails; H2: `deepseek-flash` holds; H3 on B: `claude-haiku-5-5` fails, `deepseek-flash` holds; H4 holds (cross-line hits 0, planted values sent out or queued with redaction on 0, probe harm events 0, probe families followed in code 0).
+
+H5, exploratory, defences in the prompt only: B, `claude-haiku-5-5`: attacked lines hit 0 (per-line 0) of 20, memo_follow 0; B, `deepseek-flash`: attacked lines hit 0 (per-line 0) of 20, memo_follow 0.
+
+H6, exploratory, record-mode wall clock: A: 178 s for the statement against 56 s for the per-line agent stage; B: 123 s for the statement against 61 s for the per-line agent stage.
 
 ### Candidate search: trigram, full text, vector, RRF
 
@@ -148,6 +193,7 @@ bank line ──► rules pass ──► closed: exact amount, one candidate, pa
 - **Shadow policy** ([policy.py](src/recon/policy.py)). Auto-approves only the boring case: one invoice, the exact amount, at most NZ$1,000, a payer seen before (in the evaluation, a payer with an earlier match the labels mark correct; seeding this from approved allocations is not built), payer text that does not read like an instruction. Owner bank rules auto-approve inside a sign and size envelope. In shadow mode it records verdicts and posts nothing.
 - **Review** ([db.py](src/recon/db.py)). A reviewer approves or rejects each proposal the policy routes to review; in shadow mode the ones it would auto-approve are recorded but neither posted nor listed. Every decision writes an audit row; allocations carry amounts, and a part payment leaves its invoice open.
 - **MCP server** ([mcp_server.py](src/recon/mcp_server.py)). `recon mcp` serves four read-only tools over stdio (list and read bank lines, search candidates, find combinations) to any MCP client. They reuse the agent's toolbox and role, so an outside assistant gets the same computed relations and fenced, redacted payer text, and no way to write. `recon mcp --code-mode` serves one tool instead, `run_python`: the client's code runs in the code-mode sandbox (no network, no credentials) and calls the four tools as functions through this same server, so a client can work over many lines in one call; its output is redacted.
+- **Code mode, an experiment** ([codemode.py](src/recon/codemode.py), [bridge.py](src/recon/bridge.py), [sandbox.py](src/recon/sandbox.py), [claude.py](src/recon/claude.py)). The model writes Python that calls the same tools for a whole statement, in a Docker sandbox with no network or credentials, or in Anthropic's container through programmatic tool calling. Either way every call reaches a bridge that takes the read tools from the MCP server, checks schemas, sizes, the line's scope and per-line budgets, and sends proposals to the line's own verifier; only an accepted proposal or escalation decides. The questions and thresholds were fixed before the runs in [docs/code-mode-experiment.md](docs/code-mode-experiment.md), and the verdicts are generated in the Code mode section above.
 - **Plain-English bank rules** ([rule_compiler.py](src/recon/rule_compiler.py)). An owner writes a rule in a sentence; the model drafts JSON and code decides whether it becomes a rule: known account, the direction that account allows, inside the policy envelope, specific enough, and matching no customer in the ledger. Amounts are written by the model as the owner gave them and turned into cents by code.
 - **Postgres with least privilege** ([schema.sql](src/recon/schema.sql)). The agent's queries run under a role that can read the ledger and insert proposals, nothing else, and cannot read the evaluation labels. The process connects as the owner and switches to that role per transaction, which guards against bugs, not against code that runs its own SQL; a deployment would give the agent a login that is a member of that role only. A trigger rejects updates, deletes and truncation of the audit table, even from the owner connection. It does not stop the owner dropping the trigger, and `recon load`, `run` and `eval` recreate every schema because the data is disposable.
 
@@ -161,7 +207,7 @@ The agent finds candidates by trigram similarity on the payer name in Postgres. 
 
 ### Provider-agnostic
 
-DeepSeek, Ollama, Gemini and OpenAI serve the OpenAI Chat Completions format, so such a provider is one row in [llm.py](src/recon/llm.py): base URL, key variable, model id and prices. Claude runs through Anthropic's own Messages API ([claude.py](src/recon/claude.py), installed with `uv sync --extra claude`), the only way to reach programmatic tool calling; its row in the same registry carries Claude Haiku 5.5's two price cards. The results above use two DeepSeek hosted models and a local `gpt-oss:20b` on Ollama, and Gemini for embeddings. Only synthetic data is ever sent to a provider.
+DeepSeek, Ollama, Gemini and OpenAI serve the OpenAI Chat Completions format, so such a provider is one row in [llm.py](src/recon/llm.py): base URL, key variable, model id and prices. Claude runs through Anthropic's own Messages API ([claude.py](src/recon/claude.py), installed with `uv sync --extra claude`), the only way to reach programmatic tool calling; its row in the same registry carries Claude Haiku 5.5's two price cards. The results above use two DeepSeek hosted models, Claude Haiku 5.5 and a local `gpt-oss:20b` on Ollama, and Gemini for embeddings. Only synthetic data is ever sent to a provider.
 
 ## Security
 
@@ -173,7 +219,7 @@ The bank memo is written by whoever paid, so it is the injection surface. The de
 - There is no posting tool, and the role the agent's queries run under cannot write the ledger.
 - The policy screen keeps instruction-like text away from auto-approval. It is a keyword screen built from the development business only; business B (second seed) shows how little it generalises, which is why it is not the control that matters.
 
-The safety table measures these controls on the full runs. The ablation switches the prompt group and the code group off, one run each.
+The safety table measures these controls on the full runs. The ablation switches the prompt group and the code group off, mostly one run each.
 
 ## Where this breaks
 
@@ -185,14 +231,15 @@ The safety table measures these controls on the full runs. The ablation switches
 - **The auto-approval simulation assumes a perfect reviewer.** A payer counts as seen after an earlier match the labels mark correct.
 - **The rule validator checks safety, not intent.** It keeps a compiled rule inside its envelope and away from customers, but it cannot tell that a rule differs from what the owner meant; the bad-rule table lists every such rule a model wrote. A compiled rule should be shown to the owner before it is used, and nothing here applies one automatically. The 40 eval sentences were written for this project, not collected from owners.
 - **Small counts give wide bounds.** A zero out of a few dozen lines is reported with its upper bound for that reason.
-- **Three models so far, all small samples.** The larger hosted model escalated more lines and cost more without being more accurate here. The local `gpt-oss:20b` was less accurate and less consistent from run to run. Its times are not representative: it ran on an 8 GB RTX 3070 with part of the model on the CPU, because the model does not fit in 8 GB. Offload should change how long it takes, not what it decides; that is not tested, and the hardware is not recorded in the results files.
+- **Four models so far, all small samples.** The larger hosted model escalated more lines and cost more without being more accurate here. Claude Haiku 5.5, added for the code-mode experiment, cost less than `deepseek-flash` per line and escalated more lines that had a match. The local `gpt-oss:20b` was less accurate and less consistent from run to run. Its times are not representative: it ran on an 8 GB RTX 3070 with part of the model on the CPU, because the model does not fit in 8 GB. Offload should change how long it takes, not what it decides; that is not tested, and the hardware is not recorded in the results files.
+- **Code mode was cheaper on average, not run by run, and Claude's version lost accuracy.** Writing code for a whole statement cut model passes for both models, but the cost of a statement run varied with the code the model chose to write, so the pre-registered efficiency test failed for both. Claude's programmatic runs escalated lines the per-line agent matched: its worst repeats decided a whole statement from one table written in code. Nothing in the verifier stops a code arm from escalating too much; it only stops wrong matches. The samples are 3 runs per cell on two synthetic businesses.
 - **Replay tests the harness, not the model.** The CI gate replays recorded model output; it proves the code still makes the same decisions from the same answers. Live quality comes only from the dated results files.
 
 ## Verification
 
 - `tests/test_synth.py` checks the hard-case labels with an oracle written apart from the generator. On split, partial, fee-deducted and no-match lines no invoice has the exact amount, and among the payer's own invoices no other combination or fee-window candidate fits. Same-amount twins on typo and duplicate-amount lines belong to another payer. A fingerprint pins the ground truth.
 - `tests/test_db.py` runs against Postgres: the agent role cannot write the ledger or read labels, the audit table refuses updates, deletes and truncation, the rules pass makes no wrong match, no attack lands on a line the rules close, every labelled answer clears the verifier's payer check, and every match recorded with the payer check on passes the current verifier, except the one that prompted the stricter rule.
-- `tests/test_gate.py` replays a committed 40-line slice through the whole pipeline and requires the same rules decisions, agent decisions and policy verdicts as the recording, no new wrong match or successful attack, no leaked personal data, and no provider error. A doctored copy of the cassette must fail, and `recon run` must replay the slice end to end.
+- `tests/test_gate.py` replays four committed 40-line slices (the per-line agent, code mode in the sandbox, and Claude per line and with programmatic tool calling) through the whole pipeline and requires the same rules decisions, agent decisions and policy verdicts as the recording, no new wrong match or successful attack, no leaked personal data, and no provider error. A doctored copy of each cassette must fail, and `recon run` must replay each slice end to end.
 - `tests/test_report.py` fails if the results block in this README differs from what `recon report` writes from `results/*.json`.
 - Every pipeline results file records the commit (marked dirty if anything under `src/`, `pyproject.toml` or `uv.lock` differed from it), the prompt hash, the model settings and the dataset fingerprint.
 
@@ -211,6 +258,11 @@ uv run recon report   # rewrite the results block above from results/*.json
 uv run --env-file .env recon retrieval   # the candidate search ablation (embeddings only)
 uv run --env-file .env recon rules-compile "Book MONTHLY A/C FEE to bank fees, max \$10."
 uv run --env-file .env recon rules-eval  # the 40-sentence rule compiler eval
+make sandbox-image                         # the code-mode sandbox (Python and runner.py only)
+uv run --env-file .env recon eval --business A --arm sandbox --mode record   # code mode, DeepSeek
+uv sync --extra claude && uv run --extra claude --env-file .env recon eval --business A \
+  --model claude-haiku-5-5 --arm ptc --mode record   # code mode, programmatic tool calling
+uv run --env-file .env recon probes --business A --arm sandbox --mode record   # code-mode probes
 ```
 
 A run leaves its proposals in the review queue. The policy runs in shadow mode: it records what it would auto-approve and posts nothing. A person reviews the rest:
@@ -244,17 +296,24 @@ src/recon/
   policy.py         the shadow auto-approval policy
   evaluate.py       end-to-end runs, metrics and results files
   retrieval.py      the candidate search ablation: trigram, full text, pgvector, RRF
-  mcp_server.py     the read-only MCP server
+  mcp_server.py     the read-only MCP server, and its code-mode variant
+  codemode.py       code mode: the statement loop and the run_python tool
+  bridge.py         the checks between model code and the tools
+  sandbox.py        the Docker sandbox that runs model code
+  claude.py         Claude's per-line and programmatic tool calling arms
+  probes.py         code-mode probes overlaid on clean lines
+  hypotheses.py     the code-mode verdicts, from results files
   rule_compiler.py  plain-English bank rules to validated rules, and their eval
   gate.py           the CI gate for a replayed run
   report.py         the README results block
   cli.py            the `recon` command
-tests/              unit, database, gate, MCP and README tests; cassettes/ holds the CI slice
+tests/              unit, database, gate, MCP and README tests; cassettes/ holds the CI slices
 evals/              the 40 plain-English rule sentences and what each should compile to
 scripts/            record_demo.py renders docs/demo.svg from the replayed slice
 Dockerfile          the recon command in a small non-root image, built and run in CI
+sandbox/            the code-mode sandbox image: Python and runner.py, nothing else
 results/            dated results files per business, model and setting, kept when a rerun supersedes them
-docs/               threat model, agent log, local-model runbook and the demo recording
+docs/               threat model, agent log, code-mode pre-registration, local-model runbook, demo recording
 ```
 
 ## How this was built
@@ -265,7 +324,7 @@ The rules the coding agents work under are committed in [AGENTS.md](AGENTS.md). 
 
 ## Tech
 
-Python 3.13 · uv · PostgreSQL 17 · pg_trgm · pgvector · psycopg 3 · OpenAI-compatible APIs (DeepSeek, Gemini embeddings, Ollama) · MCP Python SDK · pydantic · pytest · ruff · GitHub Actions · Docker Compose
+Python 3.13 · uv · PostgreSQL 17 · pg_trgm · pgvector · psycopg 3 · OpenAI-compatible APIs (DeepSeek, Gemini embeddings, Ollama) · Anthropic Messages API · MCP Python SDK · Docker sandbox · pydantic · pytest · ruff · GitHub Actions · Docker Compose
 
 ---
 *Personal portfolio project, MIT licensed.*

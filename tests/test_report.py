@@ -57,7 +57,11 @@ def code_mode_results():
     wrong = {labels[0].line_id: "escalate", labels[1].line_id: right[labels[1].line_id]}
 
     def result(arm, decided, requests):
-        summary = {"model_requests_per_100_agent_lines": requests, "statement": None}
+        summary = {
+            "model_requests_per_100_agent_lines": requests,
+            "cost_per_100_bank_lines_usd": 0.05 if arm == "direct" else 0.02,
+            "statement": None,
+        }
         if arm != "direct":
             summary["statement"] = {"code_failures": 1}
         totals = {
