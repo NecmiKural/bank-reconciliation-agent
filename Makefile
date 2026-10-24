@@ -1,5 +1,5 @@
 # Common tasks. Live targets read model keys from .env.
-.PHONY: db test baseline eval record-slice demo docker-demo
+.PHONY: db test baseline eval record-slice demo docker-demo sandbox-image
 
 db:
 	docker compose up -d --wait
@@ -31,3 +31,7 @@ docker-demo: db
 	docker compose --profile app build app
 	docker compose --profile app run --rm app run --business A --limit 40 --mode replay \
 		--cassette tests/cassettes/A-slice.jsonl --workers 4
+
+# The code-mode sandbox: Python and sandbox/runner.py only (see src/recon/sandbox.py).
+sandbox-image:
+	docker build -t recon-sandbox:1 sandbox

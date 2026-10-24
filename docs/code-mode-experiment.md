@@ -109,3 +109,4 @@ Budget: expected about US$9 at peak list prices, worst case about US$17, hard ca
 | Date | Event |
 |---|---|
 | 2026-10-24 | Plan approved. C0: bridge, statement-scoped MCP server and cross-line attack metrics. Not frozen. |
+| 2026-10-24 | C1: the sandbox image and its tests. On this Mac (Rancher Desktop, Alpine VM, cgroup v2, Docker 29.5.2), 20 cold starts took p50 228 ms and p95 253 ms to ready; start, one cell and close took p50 272 ms and p95 300 ms. The memory, process and deadline limits all held in the VM. |
