@@ -16,14 +16,21 @@ eval: db
 	uv run --env-file .env recon eval --business A --repeats 3 --mode record
 	uv run --env-file .env recon eval --business B --repeats 3 --mode record
 
-# Re-record the 40-line slice that CI replays. Needed after any change to prompts, tools or data.
+# Re-record the 40-line slices that CI replays. Needed after any change to prompts, tools or data.
+# The Claude slices need ANTHROPIC_API_KEY and `uv sync --extra claude`.
 record-slice: db
-	rm -f tests/cassettes/A-slice.jsonl tests/cassettes/A-slice-sandbox.jsonl
+	rm -f tests/cassettes/A-slice*.jsonl
 	uv run --env-file .env recon eval --business A --repeats 1 --limit 40 --mode record \
 		--cassette tests/cassettes/A-slice.jsonl --out tests/cassettes --name A-slice
 	uv run --env-file .env recon eval --business A --repeats 1 --limit 40 --mode record \
 		--arm sandbox --statement-size all --cassette tests/cassettes/A-slice-sandbox.jsonl \
 		--out tests/cassettes --name A-slice-sandbox
+	uv run --extra claude --env-file .env recon eval --business A --repeats 1 --limit 40 \
+		--mode record --model claude-haiku-5-5 --cassette tests/cassettes/A-slice-claude.jsonl \
+		--out tests/cassettes --name A-slice-claude
+	uv run --extra claude --env-file .env recon eval --business A --repeats 1 --limit 40 \
+		--mode record --model claude-haiku-5-5 --arm ptc --statement-size all \
+		--cassette tests/cassettes/A-slice-ptc.jsonl --out tests/cassettes --name A-slice-ptc
 
 # Offline: replays the committed slice, no key needed.
 demo: db

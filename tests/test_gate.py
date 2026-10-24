@@ -1,5 +1,6 @@
 """Replay each committed slice through the whole pipeline and hold it to the gate: the per-line
-agent's slice, and code mode's, which also runs the recorded code in the sandbox again."""
+agent's slice, code mode's, which also runs the recorded code in the sandbox again, and Claude's
+two arms, per line and with programmatic tool calling."""
 
 import json
 import os
@@ -13,7 +14,7 @@ import pytest
 from recon import db, evaluate, gate, llm, sandbox, synth
 
 CASSETTES = Path(__file__).parent / "cassettes"
-SLICES = ["A-slice", "A-slice-sandbox"]
+SLICES = ["A-slice", "A-slice-sandbox", "A-slice-claude", "A-slice-ptc"]
 
 
 def sandbox_ready() -> bool:
@@ -38,6 +39,8 @@ def recorded(request):
             raise
         pytest.skip("Postgres not reachable; run `docker compose up -d --wait`")
     recording = json.loads((CASSETTES / f"{request.param}.json").read_text())
+    if llm.MODELS[recording["model"]].api == "anthropic":
+        pytest.importorskip("anthropic")  # an optional dependency: `uv sync --extra claude`
     if recording.get("arm", "direct") == "sandbox" and not sandbox_ready():
         if os.environ.get("CI"):
             pytest.fail(f"{sandbox.IMAGE} missing in CI")
@@ -48,7 +51,7 @@ def recorded(request):
 def replay(cassette, recording):
     return evaluate.evaluate(
         "A",
-        "deepseek-flash",
+        recording["model"],
         1,
         "replay",
         cassette,
@@ -67,9 +70,16 @@ def test_the_replayed_slice_passes_the_gate(recorded):
 
 def doctor(entry):
     """Turn a recorded match proposal into an escalation: in a tool call for the per-line
-    agent, and in the code a code-mode cell runs."""
+    agent, in the code a code-mode cell runs, and in a Claude tool call, made directly or
+    from code."""
     count = 0
-    for call in entry["response"]["choices"][0]["message"].get("tool_calls") or []:
+    for block in entry["response"].get("content") or []:  # Anthropic's Messages API
+        if block.get("type") == "tool_use" and block.get("name") == "propose_match":
+            block["name"] = "escalate"
+            block["input"] = {"line_id": block["input"].get("line_id"), "reason": "doctored"}
+            count += 1
+    choices = entry["response"].get("choices") or [{"message": {}}]
+    for call in choices[0]["message"].get("tool_calls") or []:
         function = call["function"]
         if function["name"] == "propose_match":
             call["function"] = {"name": "escalate", "arguments": '{"reason": "doctored"}'}
@@ -112,10 +122,15 @@ def test_recon_run_replays_the_slice_end_to_end(recorded, tmp_path, monkeypatch,
     monkeypatch.chdir(tmp_path)  # traces go to a scratch folder
     argv = ["run", "--mode", "replay", "--cassette", str(cassette), "--limit", "40"]
     argv += ["--workers", "4", "--arm", recording.get("arm", "direct")]
+    argv += ["--model", recording["model"]]
+    argv += ["--statement-size", recording.get("statement_size") or "all"]
     cli.main(argv)
     out = capsys.readouterr().out
-    assert "review with: recon review list --run A-deepseek-flash-" in out
-    assert "BAD" not in out
+    run_id = f"A-{evaluate.safe_name(recording['model'])}-"
+    assert f"review with: recon review list --run {run_id}" in out
+    agent = recording["runs"][0]["summary"]["agent"]
+    bad = sum(line.startswith("BAD") for line in out.splitlines())
+    assert bad == agent["n"] - agent["correct"]  # the lines the recording got wrong, no more
 
 
 def test_payer_text_is_printed_without_control_characters():
