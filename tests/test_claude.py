@@ -106,6 +106,17 @@ def test_programmatic_calls_continue_with_only_tool_results_and_the_container():
     assert stats.programmatic_calls == 2 and stats.containers == 1
 
 
+def test_a_continuation_with_no_tokens_is_a_request_but_not_a_model_pass():
+    """Live, code that awaits tools one by one came back as responses with zero tokens."""
+    idle = {"input_tokens": 0, "output_tokens": 0}
+    script = [
+        response([SERVER, tool_use(*SEARCH, "toolu_1", FROM_CODE)], container="container_1"),
+        response([tool_use(*PROPOSE, "toolu_2", FROM_CODE)], container="container_1", usage=idle),
+    ]
+    _, stats, _ = run(script, programmatic=True)
+    assert stats.steps == 2 and stats.sampling_passes == 1
+
+
 def test_a_paused_turn_is_sent_back_without_a_new_user_message():
     script = [
         response([SERVER], stop="pause_turn", container="container_1"),

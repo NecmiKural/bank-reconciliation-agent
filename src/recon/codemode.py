@@ -94,7 +94,8 @@ class Statement:
     """Totals for one statement; per-line results carry only their decisions."""
 
     lines: int
-    steps: int = 0
+    steps: int = 0  # provider requests
+    sampling_passes: int = 0  # requests whose response the model wrote (output tokens > 0)
     input_tokens: int = 0
     cached_tokens: int = 0
     output_tokens: int = 0
@@ -151,6 +152,7 @@ def reconcile_statement(
                 cost = cost_usd(model.spec, usage)
                 choice = response.choices[0]
                 stats.steps = step
+                stats.sampling_passes += usage.output_tokens > 0
                 stats.input_tokens += usage.input_tokens
                 stats.cached_tokens += usage.cached_tokens
                 stats.output_tokens += usage.output_tokens
@@ -313,6 +315,7 @@ def statement_summary(statements: list[Statement]) -> dict[str, Any]:
     return {
         "statements": len(statements),
         "model_requests": sum(s.steps for s in statements),
+        "sampling_passes": sum(s.sampling_passes for s in statements),
         "cells": sum(s.cells for s in statements),
         "code_failures": sum(s.code_failures for s in statements),
         "programmatic_calls": sum(s.programmatic_calls for s in statements),

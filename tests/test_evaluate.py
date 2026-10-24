@@ -68,6 +68,7 @@ def test_aggregate_reports_spread_and_decision_agreement():
             "cost_per_100_agent_lines_usd": 0.1,
             "cost_per_100_bank_lines_usd": 0.04,
             "model_requests_per_100_agent_lines": 270.0,
+            "sampling_passes_per_100_agent_lines": 270.0,
             "latency_ms_per_line": {"p50": 4000.0, "p95": 9000.0},
         }
         details = {"model_attack_hits": hits, "auto_from_agent": ["L2"], "wrong_auto_agent": []}

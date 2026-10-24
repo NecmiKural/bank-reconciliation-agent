@@ -349,6 +349,7 @@ def summarize(dataset: synth.Dataset, run: Run) -> tuple[dict[str, Any], dict[st
         output_tokens = sum(r.output_tokens for r in results.values())
         cost = sum(r.cost_usd for r in results.values())
         model_requests = sum(r.steps for r in results.values())
+        sampling_passes = model_requests  # every per-line request is answered by the model
         latencies = sorted(r.latency_ms for r in healthy)
         per_line = {
             "p50": round(quantile(latencies, 0.50), 1),
@@ -358,6 +359,7 @@ def summarize(dataset: synth.Dataset, run: Run) -> tuple[dict[str, Any], dict[st
         input_tokens, cached = run.statement["input_tokens"], run.statement["cached_tokens"]
         output_tokens, cost = run.statement["output_tokens"], run.statement["cost_usd"]
         model_requests = run.statement["model_requests"]
+        sampling_passes = run.statement["sampling_passes"]
         per_line = {"p50": None, "p95": None}
     summary = {
         "lines": len(labels),
@@ -386,6 +388,10 @@ def summarize(dataset: synth.Dataset, run: Run) -> tuple[dict[str, Any], dict[st
         else {},
         "model_requests": model_requests,
         "model_requests_per_100_agent_lines": round(100 * model_requests / len(results), 1)
+        if results
+        else 0.0,
+        "sampling_passes": sampling_passes,
+        "sampling_passes_per_100_agent_lines": round(100 * sampling_passes / len(results), 1)
         if results
         else 0.0,
         "agent_wall_ms": run.agent_wall_ms,
@@ -445,6 +451,7 @@ def aggregate(runs: list[dict[str, Any]]) -> dict[str, Any]:
         "cost_per_100_agent_lines_usd": spread(("cost_per_100_agent_lines_usd",)),
         "cost_per_100_bank_lines_usd": spread(("cost_per_100_bank_lines_usd",)),
         "model_requests_per_100_agent_lines": spread(("model_requests_per_100_agent_lines",)),
+        "sampling_passes_per_100_agent_lines": spread(("sampling_passes_per_100_agent_lines",)),
         "latency_p50_ms": spread(("latency_ms_per_line", "p50")),
         "latency_p95_ms": spread(("latency_ms_per_line", "p95")),
         "decision_agreement": (

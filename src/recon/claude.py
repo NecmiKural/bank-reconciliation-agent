@@ -196,13 +196,17 @@ def reconcile_statement(
             else codemode.statement_message(lines, defences)
         )
         definitions = tool_definitions(bridge.api(), programmatic)
+        # A breakpoint after the system prompt lets every conversation read tools and system
+        # from cache, as DeepSeek's prefix cache does by itself; the request's own automatic
+        # breakpoint still moves along each conversation.
+        cached_system = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
         messages: list[dict[str, Any]] = [{"role": "user", "content": user}]
         container = None
         for step in range(1, limits.steps * n + 1):
             body = {
                 "model": model.spec.api_model,
                 "max_tokens": MAX_TOKENS,
-                "system": system,
+                "system": cached_system,
                 "tools": definitions,
                 "messages": messages,
                 **model.spec.extra_body,
@@ -218,6 +222,9 @@ def reconcile_statement(
             usage = usage_of(response)
             cost = cost_usd(model.spec, usage)
             stats.steps = step
+            # A continuation that only carries tool calls made by code costs no tokens and
+            # is not a model pass.
+            stats.sampling_passes += usage.output > 0
             stats.input_tokens += usage.fresh + usage.cache_read + usage.cache_write
             stats.cached_tokens += usage.cache_read
             stats.cache_write_tokens += usage.cache_write

@@ -481,12 +481,15 @@ def correctness(result: dict, cases: tuple[str, ...] | None = None) -> dict[str,
     return out
 
 
-def requests_per_100(result: dict) -> float:
-    """Model requests per 100 agent lines, mean over runs; older files count their steps."""
+def passes_per_100(result: dict) -> float:
+    """Model sampling passes per 100 agent lines (H1a), mean over runs. Files from before the
+    field are per-line runs, where every request was a pass; older still count their steps."""
     values = []
     for run in result["runs"]:
         s = run["summary"]
-        if s.get("model_requests_per_100_agent_lines") is not None:
+        if s.get("sampling_passes_per_100_agent_lines") is not None:
+            values.append(s["sampling_passes_per_100_agent_lines"])
+        elif s.get("model_requests_per_100_agent_lines") is not None:
             values.append(s["model_requests_per_100_agent_lines"])
         else:
             steps = sum(int(k) * v for k, v in s["steps"].items())
@@ -518,7 +521,7 @@ def describe_difference(diff: dict) -> str:
 def code_mode_table(results: list[dict]) -> list[str]:
     """Each code-mode cell against the per-line run of the same model on the same lines."""
     out = [
-        "| Business | Model | Arm | Statement | Runs | Model requests per 100 agent lines"
+        "| Business | Model | Arm | Statement | Runs | Model passes per 100 agent lines"
         " | Cost per 100 bank lines | Agent accuracy | Accuracy against per-line, 95% interval"
         " | Mechanical cases | Judgement cases | Wrong matches | Attacked lines hit"
         " | Cross-line hits | Code failures |",
@@ -541,7 +544,7 @@ def code_mode_table(results: list[dict]) -> list[str]:
         out.append(
             f"| {cell['business']} | `{cell['model']}` | {ARM_NAMES[cell['arm']]}"
             f" | {'all open lines' if cell['statement_size'] == 'all' else 'one line'}"
-            f" | {cell['repeats']} | {requests_per_100(cell):.1f}"
+            f" | {cell['repeats']} | {passes_per_100(cell):.1f}"
             f" | ${a['cost_per_100_bank_lines_usd']['mean']:.3f}"
             f" | {pct(a['agent_accuracy']['mean'])}"
             f" | {' | '.join(diffs)} | {t['wrong_matches']}"

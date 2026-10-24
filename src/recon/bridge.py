@@ -172,6 +172,8 @@ class Bridge:
             return "unknown_method", {"error": f"unknown tool {str(name)[:40]!r}"}
         if not isinstance(args, dict):
             return "schema", {"error": "arguments must be an object"}
+        if "line_id" not in args:  # said plainly, so the model can add it and call again
+            return "schema", {"error": "missing arguments ['line_id']"}
         line_id = args.get("line_id")
         if not isinstance(line_id, str) or line_id not in self.boxes:
             return "scope", {"error": "line_id is not an open line of this statement"}

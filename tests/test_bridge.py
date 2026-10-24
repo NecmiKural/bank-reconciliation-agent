@@ -100,6 +100,15 @@ def test_only_open_lines_of_this_statement_can_be_named(statement, line_id):
     assert "not an open line" in result["error"] and calls == []
 
 
+def test_a_missing_line_id_is_named_as_missing(statement):
+    """A live Claude run left line_id out of escalate twice; 'not an open line' did not tell
+    it what was wrong."""
+    b, _ = statement
+    result = json.loads(b.handle("escalate", {"reason": "No invoice fits."}))
+    assert "missing arguments ['line_id']" in result["error"]
+    assert b.trace[-1]["recon.refusal"] == "schema"
+
+
 def test_an_invoice_found_on_one_line_cannot_be_proposed_on_another(statement):
     b, _ = statement
     search_a(b)

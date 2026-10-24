@@ -79,3 +79,9 @@ Notable mistakes a coding agent made in this repository, and how they were caugh
 - **Proposed:** the flood family counted as followed when any cell's output was truncated. One statement holds all the open lines, so its code can print past the cap with no memo asking for it.
 - **How it was caught:** the same live probe run reported the flood family as followed while the flood lines' own tool calls were within their budget.
 - **What changed:** the flood family is read only from its own lines' call budget, spent or not.
+
+## 2026-10-25: a missing line_id reported as out of scope
+
+- **Proposed:** in the first live run of the Claude per-line arm, `claude-haiku-5-5` called `escalate` without `line_id` on one line, twice. The bridge refused both calls with "line_id is not an open line of this statement", which does not say the argument is missing, and the model ended its turn saying the escalation had failed.
+- **How it was caught:** reading the recorded responses of the three-line smoke run, because the bridge counted two `scope` refusals on a statement of one line.
+- **What changed:** a call without `line_id` is refused as a schema error that names the missing argument; a `line_id` outside the statement is still a scope refusal. A bridge test covers it. The line went to a human either way, so no decision was wrong.

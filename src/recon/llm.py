@@ -30,8 +30,8 @@ from openai.types.chat import ChatCompletion
 #   without it, but assistant messages are appended unchanged either way;
 # - temperature has no effect in thinking mode, so it is never sent;
 # - strict tool schemas need the /beta base URL.
-# Prices: USD per million tokens at peak rates, checked 2026-10-18. Off-peak is half.
-PRICES_CHECKED = "2026-10-18"
+# Prices: USD per million tokens at peak rates, checked 2026-10-25. Off-peak is half.
+PRICES_CHECKED = "2026-10-25"
 # Claude Haiku 5.5, from platform.claude.com/docs/en/about-claude/pricing on 2026-10-25:
 # $0.10 input, $0.125 5-minute cache write, $0.01 cache read, $0.50 output; a request whose
 # prompt (cache reads and writes included) is over 100,000 tokens pays five times each.
