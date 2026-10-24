@@ -232,6 +232,9 @@ def run_call(
     return cell_message(cell, restarted, defences), box
 
 
+Decide = Callable[[list[BankLine], tools.Search], tuple[dict[str, LineResult], Statement]]
+
+
 def reconcile_open(
     lines: list[BankLine],
     model: LLM,
@@ -240,6 +243,19 @@ def reconcile_open(
     database_url: str | None,
     defences: Defences = DEFENCES["on"],
     sandbox: Callable[[], Sandbox] = Sandbox,
+) -> tuple[dict[str, LineResult], list[Statement]]:
+    def decide(statement: list[BankLine], search: tools.Search):
+        return reconcile_statement(statement, model, search, defences, sandbox=sandbox)
+
+    return run_statements(lines, statement_size, workers, database_url, decide)
+
+
+def run_statements(
+    lines: list[BankLine],
+    statement_size: str,
+    workers: int,
+    database_url: str | None,
+    decide: Decide,
 ) -> tuple[dict[str, LineResult], list[Statement]]:
     """The open lines as one statement (S=all, serial) or one statement per line (S=1, in
     parallel, one database connection per worker thread)."""
@@ -258,12 +274,9 @@ def reconcile_open(
                 connections.append(conn)
         return tools.db_search(conn)(line, payee, number)
 
-    def one(statement: list[BankLine]) -> tuple[dict[str, LineResult], Statement]:
-        return reconcile_statement(statement, model, search, defences, sandbox=sandbox)
-
     pool = ThreadPoolExecutor(max_workers=1 if statement_size == "all" else workers)
     try:
-        done = list(pool.map(one, statements))
+        done = list(pool.map(lambda statement: decide(statement, search), statements))
     finally:
         pool.shutdown(cancel_futures=True)
         for conn in connections:
