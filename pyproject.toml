@@ -1,6 +1,6 @@
 [project]
 name = "bank-reconciliation-agent"
-version = "1.0.0"
+version = "1.1.0"
 description = "Rules-first, tool-calling agent that reconciles NZ small-business bank lines to invoices, measured with replayable evals."
 readme = "README.md"
 license = "MIT"
