@@ -31,7 +31,7 @@ def search_log():
 def statement():
     search, calls = search_log()
     lines = [LINE_A, LINE_B]
-    with bridge.Bridge(lines, search, agent.DEFENCES["on"], "test", connect=lambda: None) as b:
+    with bridge.Bridge(lines, search, agent.DEFENCES["on"], "test") as b:
         yield b, calls
 
 

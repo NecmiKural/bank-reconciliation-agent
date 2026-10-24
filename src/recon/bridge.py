@@ -15,15 +15,13 @@ from __future__ import annotations
 import asyncio
 import json
 import threading
-from collections.abc import Callable
 from concurrent.futures import Future
 from dataclasses import dataclass
 from typing import Any
 
-import psycopg
 from mcp import Client
 
-from recon import db, mcp_server
+from recon import mcp_server
 from recon.agent import Defences, finalize
 from recon.score import Decision
 from recon.synth import BankLine
@@ -78,7 +76,6 @@ class Bridge:
         defences: Defences,
         source: str,
         caps: Caps = CAPS,
-        connect: Callable[[], psycopg.Connection] = db.connect,
     ) -> None:
         self.boxes = {line.id: Toolbox(line, search, defences.payer_check) for line in lines}
         self.defences, self.source, self.caps = defences, source, caps
@@ -86,7 +83,6 @@ class Bridge:
         self.calls: dict[str, int] = dict.fromkeys(self.boxes, 0)
         self.rejected: dict[str, int] = dict.fromkeys(self.boxes, 0)
         self.trace: list[dict[str, Any]] = []
-        self._connect = connect
         self._lock = threading.Lock()
         self.specs: dict[str, dict[str, Any]] = {}
 
@@ -98,7 +94,7 @@ class Bridge:
         self._thread.start()
         self._jobs: asyncio.Queue = asyncio.Queue()
         ready: Future = Future()
-        server = mcp_server.build(self._connect, self.boxes)
+        server = mcp_server.build(toolboxes=self.boxes)
         self._session = asyncio.run_coroutine_threadsafe(self._serve(server, ready), self._loop)
         try:
             listed = ready.result()
@@ -225,12 +221,13 @@ class Bridge:
             return {"error": text[:500] or f"{name} failed"}
         return result.structured_content or {}
 
-    def results(self) -> dict[str, Decision]:
-        """Every line's decision; a line the code never decided goes to a human."""
+    def results(self, reason: str = "code mode: no decision") -> dict[str, Decision]:
+        """Every line's decision; a line the code never decided goes to a human, with the
+        reason the statement ended."""
         return {
             line_id: self.decisions.get(line_id)
             or finalize(
-                Decision(line_id, "escalate", rationale="code mode: no decision"),
+                Decision(line_id, "escalate", rationale=reason),
                 self.source,
                 self.defences,
             )

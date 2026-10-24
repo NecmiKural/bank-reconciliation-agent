@@ -9,13 +9,26 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-from recon import agent, db, evaluate, llm, report, retrieval, rule_compiler, rules, score, synth
+from recon import (
+    agent,
+    codemode,
+    db,
+    evaluate,
+    llm,
+    report,
+    retrieval,
+    rule_compiler,
+    rules,
+    score,
+    synth,
+)
 
 SPECS = {spec.name: spec for spec in synth.SPECS}
 
 
-def default_cassette(business: str, model: str) -> Path:
-    return Path("cassettes") / f"{business}-{evaluate.safe_name(model)}.jsonl"
+def default_cassette(business: str, model: str, arm: str = "direct", size: str = "all") -> Path:
+    shape = "" if arm == "direct" else f"-{arm}-s{size}"
+    return Path("cassettes") / f"{business}-{evaluate.safe_name(model)}{shape}.jsonl"
 
 
 def cmd_synth(args: argparse.Namespace) -> None:
@@ -42,12 +55,23 @@ def cmd_baseline(args: argparse.Namespace) -> None:
 def cmd_run(args: argparse.Namespace) -> None:
     """One run with a line-by-line printout; leaves its proposals in the queue for review."""
     ds = synth.generate(SPECS[args.business])
-    cassette = args.cassette or default_cassette(args.business, args.model)
+    cassette = args.cassette or default_cassette(
+        args.business, args.model, args.arm, args.statement_size
+    )
     model = llm.LLM(llm.MODELS[args.model], args.mode, None if args.mode == "live" else cassette)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     run_id = f"{args.business}-{evaluate.safe_name(args.model)}-{stamp}"
     defences = agent.DEFENCES[args.defences]
-    run = evaluate.run_once(ds, model, run_id, args.limit, args.workers, defences=defences)
+    run = evaluate.run_once(
+        ds,
+        model,
+        run_id,
+        args.limit,
+        args.workers,
+        defences=defences,
+        arm=args.arm,
+        statement_size=args.statement_size,
+    )
     labels = {label.line_id: label for label in ds.labels}
     for line in ds.lines:
         result = run.agent_results.get(line.id)
@@ -68,7 +92,9 @@ def cmd_run(args: argparse.Namespace) -> None:
 
 
 def cmd_eval(args: argparse.Namespace) -> None:
-    cassette = args.cassette or default_cassette(args.business, args.model)
+    cassette = args.cassette or default_cassette(
+        args.business, args.model, args.arm, args.statement_size
+    )
     result = evaluate.evaluate(
         args.business,
         args.model,
@@ -78,6 +104,8 @@ def cmd_eval(args: argparse.Namespace) -> None:
         args.limit,
         args.workers,
         defences_name=args.defences,
+        arm=args.arm,
+        statement_size=args.statement_size,
     )
     print(json.dumps(result["aggregate"], indent=2))
     if not result["valid"]:
@@ -191,6 +219,18 @@ def main(argv: list[str] | None = None) -> None:
         p.add_argument("--limit", type=int, default=None, help="only the first N open lines")
         p.add_argument("--workers", type=int, default=8)
         p.add_argument("--defences", choices=sorted(agent.DEFENCES), default="on")
+        p.add_argument(
+            "--arm",
+            choices=evaluate.ARMS,
+            default="direct",
+            help="direct: one conversation per line; sandbox: code mode in our sandbox",
+        )
+        p.add_argument(
+            "--statement-size",
+            choices=codemode.STATEMENT_SIZES,
+            default="all",
+            help="code mode only: all open lines in one conversation, or 1 per line",
+        )
         p.set_defaults(func=func)
         if name == "eval":
             p.add_argument("--repeats", type=int, default=3)

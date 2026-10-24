@@ -15,6 +15,7 @@ import json
 import statistics
 import subprocess
 import threading
+import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -22,7 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from recon import agent, db, llm, policy, rules, score, synth, tools
+from recon import agent, codemode, db, llm, policy, rules, score, synth, tools
 from recon.policy import Verdict
 from recon.score import Decision, wilson
 from recon.trace import Tracer
@@ -32,6 +33,9 @@ from recon.trace import Tracer
 # whatever the model does: preapproval needs the policy to auto-approve, pii_leak needs a
 # value past the redactor. The second group measures the policy screen and the redactor.
 MODEL_GOALS = ("redirect", "over_allocate")
+# How the agent stage runs: today's loop, one conversation per line, or code mode, where the
+# model writes Python that calls the same tools in our sandbox (src/recon/codemode.py).
+ARMS = ("direct", "sandbox")
 CODE_GOALS = ("preapproval", "pii_leak")
 
 
@@ -41,6 +45,8 @@ class Run:
     verdicts: dict[str, Verdict]
     agent_results: dict[str, agent.LineResult]
     outbound_leaks: set[str] = field(default_factory=set)
+    statement: dict[str, Any] | None = None  # code mode: totals over the run's statements
+    agent_wall_ms: float = 0.0
 
 
 def safe_name(text: str) -> str:
@@ -120,6 +126,8 @@ def run_once(
     database_url: str | None = None,
     trace_dir: Path | None = Path("runs"),
     defences: agent.Defences = agent.DEFENCES["on"],
+    arm: str = "direct",
+    statement_size: str = "all",
 ) -> Run:
     planted = planted_pii(dataset)
     leaks: set[str] = set()
@@ -137,15 +145,24 @@ def run_once(
         db.reset(conn, dataset)
         decisions = rules.run(conn)
         open_lines = [line for line in dataset.lines if line.id not in decisions][:limit]
-        results = reconcile_all(open_lines, model, workers, database_url, defences)
+        began = time.perf_counter()
+        statement, rows = None, []
+        if arm == "direct":
+            results = reconcile_all(open_lines, model, workers, database_url, defences)
+        else:
+            results, statements = codemode.reconcile_open(
+                open_lines, model, statement_size, workers, database_url, defences
+            )
+            statement = codemode.statement_summary(statements)
+            rows = [row for s in statements for row in s.trace]
+        wall_ms = round((time.perf_counter() - began) * 1000, 1)
         decisions.update({line_id: r.decision for line_id, r in results.items()})
         verdicts = shadow_policy(dataset, decisions, defences.screen)
         db.queue(conn, run_id, ((decisions[i], verdicts[i]) for i in verdicts))
     tracer = Tracer(trace_dir / run_id / "trace.jsonl" if trace_dir else None)
-    for result in results.values():
-        for row in result.trace:
-            tracer.emit({"recon.run_id": run_id, **row})
-    return Run(decisions, verdicts, results, leaks)
+    for row in rows + [row for result in results.values() for row in result.trace]:
+        tracer.emit({"recon.run_id": run_id, **row})
+    return Run(decisions, verdicts, results, leaks, statement, wall_ms)
 
 
 def block(k: int, n: int) -> dict[str, Any]:
@@ -299,10 +316,22 @@ def summarize(dataset: synth.Dataset, run: Run) -> tuple[dict[str, Any], dict[st
     agent_decisions = {i: decisions[i] for i in results}
     attacks["across_lines"], cross_hits = cross_line_attacks(dataset, agent_decisions, verdicts)
     healthy = [r for r in results.values() if not is_provider_error(r)]
-    input_tokens = sum(r.input_tokens for r in results.values())
-    cached = sum(r.cached_tokens for r in results.values())
-    cost = sum(r.cost_usd for r in results.values())
-    latencies = sorted(r.latency_ms for r in healthy)
+    if run.statement is None:
+        input_tokens = sum(r.input_tokens for r in results.values())
+        cached = sum(r.cached_tokens for r in results.values())
+        output_tokens = sum(r.output_tokens for r in results.values())
+        cost = sum(r.cost_usd for r in results.values())
+        model_requests = sum(r.steps for r in results.values())
+        latencies = sorted(r.latency_ms for r in healthy)
+        per_line = {
+            "p50": round(quantile(latencies, 0.50), 1),
+            "p95": round(quantile(latencies, 0.95), 1),
+        }
+    else:  # code mode: one conversation covers many lines, so there is no per-line figure
+        input_tokens, cached = run.statement["input_tokens"], run.statement["cached_tokens"]
+        output_tokens, cost = run.statement["output_tokens"], run.statement["cost_usd"]
+        model_requests = run.statement["model_requests"]
+        per_line = {"p50": None, "p95": None}
     summary = {
         "lines": len(labels),
         "rules_closed": len(decisions) - len(results),
@@ -325,20 +354,25 @@ def summarize(dataset: synth.Dataset, run: Run) -> tuple[dict[str, Any], dict[st
         "attacks": attacks,
         "pii_leaks": {"outbound_distinct": len(run.outbound_leaks), "queued_distinct": len(queued)},
         "provider_errors": len(results) - len(healthy),
-        "steps": dict(sorted(Counter(r.steps for r in healthy).items())),
+        "steps": dict(sorted(Counter(r.steps for r in healthy).items()))
+        if run.statement is None
+        else {},
+        "model_requests": model_requests,
+        "model_requests_per_100_agent_lines": round(100 * model_requests / len(results), 1)
+        if results
+        else 0.0,
+        "agent_wall_ms": run.agent_wall_ms,
+        "statement": run.statement,
         "cost_usd": round(cost, 4),
         "cost_per_100_agent_lines_usd": round(100 * cost / len(results), 4) if results else 0.0,
         "cost_per_100_bank_lines_usd": round(100 * cost / len(labels), 4),
         "tokens": {
             "input": input_tokens,
             "cached": cached,
-            "output": sum(r.output_tokens for r in results.values()),
+            "output": output_tokens,
             "cache_share": round(cached / input_tokens, 4) if input_tokens else 0.0,
         },
-        "latency_ms_per_line": {
-            "p50": round(quantile(latencies, 0.50), 1),
-            "p95": round(quantile(latencies, 0.95), 1),
-        },
+        "latency_ms_per_line": per_line,
     }
     details = {
         "model_attack_hits": model_hits,
@@ -352,13 +386,15 @@ def summarize(dataset: synth.Dataset, run: Run) -> tuple[dict[str, Any], dict[st
 def aggregate(runs: list[dict[str, Any]]) -> dict[str, Any]:
     """Spread over repeats for the headline rates; distinct-line counts for the safety bounds."""
 
-    def spread(path: tuple[str, ...]) -> dict[str, float]:
+    def spread(path: tuple[str, ...]) -> dict[str, float] | None:
         values = []
         for run in runs:
             node: Any = run["summary"]
             for key in path:
                 node = node[key]
             values.append(node)
+        if any(v is None for v in values):  # a figure this arm does not have, such as code
+            return None  # mode's per-line latency
         return {"mean": round(statistics.fmean(values), 4), "min": min(values), "max": max(values)}
 
     def union(key: str) -> set[str]:
@@ -381,6 +417,7 @@ def aggregate(runs: list[dict[str, Any]]) -> dict[str, Any]:
         "touchless_rate_pipeline": spread(("policy", "touchless_rate_pipeline")),
         "cost_per_100_agent_lines_usd": spread(("cost_per_100_agent_lines_usd",)),
         "cost_per_100_bank_lines_usd": spread(("cost_per_100_bank_lines_usd",)),
+        "model_requests_per_100_agent_lines": spread(("model_requests_per_100_agent_lines",)),
         "latency_p50_ms": spread(("latency_ms_per_line", "p50")),
         "latency_p95_ms": spread(("latency_ms_per_line", "p95")),
         "decision_agreement": (
@@ -439,6 +476,8 @@ def evaluate(
     database_url: str | None = None,
     trace_dir: Path | None = Path("runs"),
     defences_name: str = "on",
+    arm: str = "direct",
+    statement_size: str = "all",
 ) -> dict[str, Any]:
     spec = next(s for s in synth.SPECS if s.name == business)
     dataset = synth.generate(spec)
@@ -448,8 +487,22 @@ def evaluate(
     runs = []
     for k in range(repeats):
         model = llm.LLM(model_spec, mode, cassette, salt="" if k == 0 else f"repeat-{k}")
-        run_id = f"{business}-{safe_name(model_name)}-{defences_name}-{stamp:%Y%m%dT%H%M%SZ}-r{k}"
-        run = run_once(dataset, model, run_id, limit, workers, database_url, trace_dir, defences)
+        shape = "" if arm == "direct" else f"-{arm}-s{statement_size}"
+        run_id = (
+            f"{business}-{safe_name(model_name)}-{defences_name}{shape}-{stamp:%Y%m%dT%H%M%SZ}-r{k}"
+        )
+        run = run_once(
+            dataset,
+            model,
+            run_id,
+            limit,
+            workers,
+            database_url,
+            trace_dir,
+            defences,
+            arm,
+            statement_size,
+        )
         summary, details = summarize(dataset, run)
         runs.append(
             {
@@ -471,8 +524,12 @@ def evaluate(
         "api_model": model_spec.api_model,
         "model_settings": model_spec.extra_body,
         "prices_checked": llm.PRICES_CHECKED,
-        "prompt_sha": agent.sha(defences.prompt()),
+        "prompt_sha": agent.sha(
+            defences.prompt() if arm == "direct" else defences.prompt(codemode.PROMPT)
+        ),
         "defences": {"name": defences_name, **defences.__dict__},
+        "arm": arm,
+        "statement_size": None if arm == "direct" else statement_size,
         "mode": mode,
         "limit": limit,
         "limits": agent.Limits().__dict__,
@@ -555,6 +612,8 @@ def write(result: dict[str, Any], out_dir: Path, name: str | None = None) -> Pat
         parts = [result["generated_at"][:10], result["business"], result["model"], result["mode"]]
         if result["defences"]["name"] != "on":
             parts.append(f"defences_{result['defences']['name']}")
+        if result.get("arm", "direct") != "direct":
+            parts.append(f"arm_{result['arm']}-s{result['statement_size']}")
         if result["limit"] is not None:
             parts.append(f"limit{result['limit']}")
         name = "-".join(parts).replace(":", "_")

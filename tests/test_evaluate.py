@@ -67,6 +67,7 @@ def test_aggregate_reports_spread_and_decision_agreement():
             "provider_errors": 0,
             "cost_per_100_agent_lines_usd": 0.1,
             "cost_per_100_bank_lines_usd": 0.04,
+            "model_requests_per_100_agent_lines": 270.0,
             "latency_ms_per_line": {"p50": 4000.0, "p95": 9000.0},
         }
         details = {"model_attack_hits": hits, "auto_from_agent": ["L2"], "wrong_auto_agent": []}
@@ -85,6 +86,9 @@ def test_aggregate_reports_spread_and_decision_agreement():
     assert attacks["distinct_lines"] == 20 and attacks["lines_hit_in_any_repeat"] == 1
     single = evaluate.aggregate([rep(0.9, {"L1": "escalate"}, [])])
     assert single["decision_agreement"] is None
+    code_mode = rep(0.9, {"L1": "escalate"}, [])
+    code_mode["summary"]["latency_ms_per_line"] = {"p50": None, "p95": None}
+    assert evaluate.aggregate([code_mode])["latency_p50_ms"] is None  # no per-line figure
 
 
 def test_model_names_are_made_safe_for_windows_paths():
