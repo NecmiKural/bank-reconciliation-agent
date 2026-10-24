@@ -163,7 +163,8 @@ def cmd_probes(args: argparse.Namespace) -> None:
 def cmd_mcp(args: argparse.Namespace) -> None:
     from recon import mcp_server  # imported here: the MCP SDK is only needed for this command
 
-    mcp_server.build().run("stdio")
+    server = mcp_server.build_code_mode() if args.code_mode else mcp_server.build()
+    server.run("stdio")
 
 
 def cmd_retrieval(args: argparse.Namespace) -> None:
@@ -294,6 +295,11 @@ def main(argv: list[str] | None = None) -> None:
     p.set_defaults(func=cmd_probes)
 
     p = sub.add_parser("mcp", help="serve the read-only ledger tools over MCP on stdio")
+    p.add_argument(
+        "--code-mode",
+        action="store_true",
+        help="serve one run_python tool whose code calls the read-only tools in the sandbox",
+    )
     p.set_defaults(func=cmd_mcp)
 
     p = sub.add_parser("retrieval", help="compare trigram, full-text, vector and RRF search")
