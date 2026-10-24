@@ -138,7 +138,7 @@ def cmd_rules_eval(args: argparse.Namespace) -> None:
 
 
 def cmd_attack_surface(args: argparse.Namespace) -> None:
-    print(f"wrote {evaluate.write_attack_surface(Path('results'))}")
+    print(f"wrote {evaluate.write_attack_surface(Path('results'), payer_check=args.payer_check)}")
 
 
 def cmd_probes(args: argparse.Namespace) -> None:
@@ -274,6 +274,12 @@ def main(argv: list[str] | None = None) -> None:
     p.set_defaults(func=cmd_rules_eval)
 
     p = sub.add_parser("attack-surface", help="lines where the verifier leaves an attack open")
+    p.add_argument(
+        "--no-payer-check",
+        dest="payer_check",
+        action="store_false",
+        help="as in the prompt_only ablation, with the verifier's payer check off",
+    )
     p.set_defaults(func=cmd_attack_surface)
 
     p = sub.add_parser("probes", help="code-mode probes overlaid on clean lines, once")

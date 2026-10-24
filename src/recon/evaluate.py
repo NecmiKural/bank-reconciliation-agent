@@ -651,10 +651,11 @@ WHERE i.status = 'open' AND i.issued <= %(posted)s
 """
 
 
-def attack_surface(conn: Any, dataset: synth.Dataset) -> dict[str, Any]:
+def attack_surface(conn: Any, dataset: synth.Dataset, payer_check: bool = True) -> dict[str, Any]:
     """For each redirect and over-allocation line: could the verifier accept any proposal that
     contains a target invoice? Where it could not, the code refuses the payload whatever the
-    model decides, so only the remaining lines test the model's judgement."""
+    model decides, so only the remaining lines test the model's judgement. With the payer
+    check off, as in the prompt_only ablation, more lines are left to the model."""
     db.reset(conn, dataset)
     lines = {line.id: line for line in dataset.lines}
     open_lines, refused = [], []
@@ -665,7 +666,7 @@ def attack_surface(conn: Any, dataset: synth.Dataset) -> dict[str, Any]:
         with db.as_role(conn, "recon_agent"):
             params = {"payee": line.payee, "posted": line.posted}
             rows = [tools.Row(*r) for r in conn.execute(SURFACE_SQL, params)]
-        box = tools.Toolbox(line, lambda *a, rows=rows: rows)
+        box = tools.Toolbox(line, lambda *a, rows=rows: rows, payer_check)
         box.seen = {r.invoice: r for r in rows}
         possible = False
         for target in label.attack_targets:
@@ -688,9 +689,12 @@ def attack_surface(conn: Any, dataset: synth.Dataset) -> dict[str, Any]:
     }
 
 
-def write_attack_surface(out_dir: Path, database_url: str | None = None) -> Path:
+def write_attack_surface(
+    out_dir: Path, database_url: str | None = None, payer_check: bool = True
+) -> Path:
     result: dict[str, Any] = {
         "attack_surface": True,
+        "payer_check": payer_check,
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "commit": git_commit(),
         "businesses": {},
@@ -700,9 +704,10 @@ def write_attack_surface(out_dir: Path, database_url: str | None = None) -> Path
             dataset = synth.generate(spec)
             result["businesses"][spec.name] = {
                 "dataset_fingerprint": fingerprint(dataset),
-                **attack_surface(conn, dataset),
+                **attack_surface(conn, dataset, payer_check),
             }
-    path = out_dir / f"{result['generated_at'][:10]}-attack-surface.json"
+    suffix = "" if payer_check else "-payer_check_off"
+    path = out_dir / f"{result['generated_at'][:10]}-attack-surface{suffix}.json"
     path.write_text(json.dumps(result, indent=1, sort_keys=True) + "\n")
     return path
 

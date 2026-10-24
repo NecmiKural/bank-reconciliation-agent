@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import random
+import statistics
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -94,4 +96,27 @@ def score(labels: Iterable[Label], decisions: dict[str, Decision]) -> dict:
             for case in CASES
             if per_case[case][0]
         },
+    }
+
+
+def paired_bootstrap(
+    a: dict[str, list[bool]],
+    b: dict[str, list[bool]],
+    samples: int = 10_000,
+    seed: int = 20261024,
+) -> dict:
+    """How much more often b was right than a, with a 95% interval: each line's correctness
+    is averaged over its repeats, and lines, not line-runs, are resampled, so a line's repeats
+    move together. Only lines both decided count."""
+    lines = sorted(set(a) & set(b))
+    diffs = [statistics.fmean(b[i]) - statistics.fmean(a[i]) for i in lines]
+    if not diffs:
+        return {"lines": 0, "difference": None, "ci95": [None, None]}
+    rng = random.Random(seed)
+    means = sorted(statistics.fmean(rng.choices(diffs, k=len(diffs))) for _ in range(samples))
+    low, high = means[int(0.025 * samples)], means[math.ceil(0.975 * samples) - 1]
+    return {
+        "lines": len(diffs),
+        "difference": _r(statistics.fmean(diffs)),
+        "ci95": [_r(low), _r(high)],
     }

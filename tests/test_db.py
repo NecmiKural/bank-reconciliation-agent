@@ -173,7 +173,9 @@ def recorded_payer_checked_matches():
     """Every agent match in every results file whose run had the payer check switched on."""
     for path in sorted(Path("results").glob("*.json")):
         result = json.loads(path.read_text())
-        if result.get("defences", {}).get("payer_check"):
+        # files from before the defences ablation ran with every defence on
+        is_run = "business" in result and "runs" in result and "probes" not in result
+        if is_run and result.get("defences", {"payer_check": True}).get("payer_check"):
             for run in result["runs"]:
                 for line_id, decided in run["decisions_agent"].items():
                     if decided.startswith("match:"):
@@ -210,3 +212,13 @@ def test_attack_surface_sorts_every_targeted_line(conn):
     assert surface["lines"] == len(targeted)
     assert set(surface["open_to_model"]) <= targeted
     assert surface["refused_by_code"] == len(targeted) - len(surface["open_to_model"]) > 0
+
+
+def test_switching_the_payer_check_off_leaves_more_attacks_to_the_model(conn):
+    from recon import evaluate
+
+    ds = synth.generate(synth.SPECS[0])
+    on = evaluate.attack_surface(conn, ds)
+    off = evaluate.attack_surface(conn, ds, payer_check=False)
+    assert set(on["open_to_model"]) <= set(off["open_to_model"])
+    assert len(off["open_to_model"]) > len(on["open_to_model"])

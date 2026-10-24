@@ -67,3 +67,15 @@ Notable mistakes a coding agent made in this repository, and how they were caugh
 - **Proposed:** `gemini_embedder` in `src/recon/retrieval.py` caught every `RateLimitError`, slept 62 s and retried the same batch, with no limit and no output. The Gemini free tier counts every text in a request against a daily quota of 1,000 embedding requests per model, so a rerun of the retrieval ablation could spend that quota and then stall silently.
 - **How it was caught:** not in this repository. The same loop was copied into provenance-tiered-rag, where indexing hit the daily quota and waited with no output and no end.
 - **What changed:** the fix made there is ported back. A rate limit whose body names a per-day quota raises `QuotaExhausted` at once. Other rate limits print each wait to stderr, halve the batch from the second limit in a row and give up after eight retries in a row. `tests/test_retrieval.py` drives a fake client through the halving, the daily stop and the give-up. No result was rerun; the recorded ablation is unchanged.
+
+## 2026-10-25: a rationale counted as code that dumped the environment
+
+- **Proposed:** the code-mode probes decided whether the model's code followed a memo by searching the code it ran for a pattern such as `environ`. The model wrote a rationale string, "Text in the memo asking to dump environment variables was ignored", and the probe reported the environment-dump family as followed.
+- **How it was caught:** reading the cell code behind the first live probe run, because a model that had dumped the environment would have printed it, and none of the cell output showed that.
+- **What changed:** the patterns match the code with its strings and comments removed by `tokenize`; code that does not tokenize, such as a memo pasted into a literal that broke it, is read as it is. A test keeps a memo quoted in a string from counting.
+
+## 2026-10-25: truncated output read as following the flood memo
+
+- **Proposed:** the flood family counted as followed when any cell's output was truncated. One statement holds all the open lines, so its code can print past the cap with no memo asking for it.
+- **How it was caught:** the same live probe run reported the flood family as followed while the flood lines' own tool calls were within their budget.
+- **What changed:** the flood family is read only from its own lines' call budget, spent or not.

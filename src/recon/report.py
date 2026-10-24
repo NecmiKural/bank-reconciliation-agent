@@ -182,7 +182,8 @@ def file_name(result: dict) -> str:
 
 
 def attack_surface(results_dir: Path) -> dict | None:
-    found = load(results_dir, kind="attack_surface")
+    """The latest attack surface with the payer check on, as in the main runs."""
+    found = [r for r in load(results_dir, kind="attack_surface") if r.get("payer_check", True)]
     return max(found, key=lambda r: r["generated_at"]) if found else None
 
 
@@ -443,17 +444,168 @@ def model_table(results: list[dict]) -> list[str]:
                 continue
             a, t = r["aggregate"], r["aggregate"]["totals"]
             agreement = a["decision_agreement"]
+            p50, p95 = a["latency_p50_ms"], a["latency_p95_ms"]
+            times = (
+                f"{p50['mean'] / 1000:.1f} s and {p95['mean'] / 1000:.1f} s"
+                if p50 and p95
+                else "n/a"  # a Claude run has no per-line model time in its statement totals
+            )
             out.append(
                 f"| `{model}` | {b} | {r['repeats']} | `{r['commit']}`"
                 f" | {pct(a['agent_accuracy']['mean'])}"
                 f" | {t['wrong_matches']} | {t['model_attacks']['lines_hit_in_any_repeat']} of"
                 f" {t['model_attacks']['distinct_lines']}"
                 f" | ${a['cost_per_100_bank_lines_usd']['mean']:.3f}"
-                f" | {a['latency_p50_ms']['mean'] / 1000:.1f} s and"
-                f" {a['latency_p95_ms']['mean'] / 1000:.1f} s"
+                f" | {times}"
                 f" | {pct(agreement) if agreement is not None else 'n/a'} |"
             )
     return out
+
+
+STRATA = {
+    "mechanical": ("split", "fee_deducted", "no_match"),
+    "judgement": ("typo", "duplicate_amount", "partial"),
+}
+ARM_NAMES = {"sandbox": "our sandbox", "ptc": "programmatic tool calling"}
+
+
+def correctness(result: dict, cases: tuple[str, ...] | None = None) -> dict[str, list[bool]]:
+    """Each agent line's correctness in each run, for lines of the given cases."""
+    labels = {label.line_id: label for label in dataset_for(result).labels}
+    out: dict[str, list[bool]] = {}
+    for run in result["runs"]:
+        for line_id, compact in run["decisions_agent"].items():
+            if cases is None or labels[line_id].case in cases:
+                ok = score.is_correct(labels[line_id], decision(line_id, compact))
+                out.setdefault(line_id, []).append(ok)
+    return out
+
+
+def requests_per_100(result: dict) -> float:
+    """Model requests per 100 agent lines, mean over runs; older files count their steps."""
+    values = []
+    for run in result["runs"]:
+        s = run["summary"]
+        if s.get("model_requests_per_100_agent_lines") is not None:
+            values.append(s["model_requests_per_100_agent_lines"])
+        else:
+            steps = sum(int(k) * v for k, v in s["steps"].items())
+            values.append(100 * steps / s["agent_lines"] if s["agent_lines"] else 0.0)
+    return sum(values) / len(values)
+
+
+def code_mode_cells(results: list[dict]) -> list[dict]:
+    """The latest full valid run of each code-mode cell."""
+    latest: dict[tuple, dict] = {}
+    for r in results:
+        if per_line(r) or r["mode"] not in ("live", "record") or r["limit"] is not None:
+            continue
+        if not r["valid"]:
+            continue
+        key = (r["business"], r["model"], r["arm"], r["statement_size"], defences_name(r))
+        if key not in latest or r["generated_at"] > latest[key]["generated_at"]:
+            latest[key] = r
+    return [latest[k] for k in sorted(latest)]
+
+
+def describe_difference(diff: dict) -> str:
+    if diff["difference"] is None:
+        return "n/a"
+    low, high = diff["ci95"]
+    return f"{diff['difference']:+.3f} ({low:+.3f} to {high:+.3f})"
+
+
+def code_mode_table(results: list[dict]) -> list[str]:
+    """Each code-mode cell against the per-line run of the same model on the same lines."""
+    out = [
+        "| Business | Model | Arm | Statement | Runs | Model requests per 100 agent lines"
+        " | Cost per 100 bank lines | Agent accuracy | Accuracy against per-line, 95% interval"
+        " | Mechanical cases | Judgement cases | Wrong matches | Attacked lines hit"
+        " | Cross-line hits | Code failures |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for cell in code_mode_cells(results):
+        base = pick(results, cell["business"], defences_name(cell), cell["model"])
+        if base and base["runs"][0]["decisions_rules"] != cell["runs"][0]["decisions_rules"]:
+            raise ValueError(f"{file_name(cell)}: the rules pass decided differently")
+        diffs = [
+            describe_difference(score.paired_bootstrap(correctness(base, c), correctness(cell, c)))
+            if base
+            else "n/a"
+            for c in (None, *STRATA.values())
+        ]
+        a, t = cell["aggregate"], cell["aggregate"]["totals"]
+        failures = sum(
+            (run["summary"]["statement"] or {}).get("code_failures", 0) for run in cell["runs"]
+        )
+        out.append(
+            f"| {cell['business']} | `{cell['model']}` | {ARM_NAMES[cell['arm']]}"
+            f" | {'all open lines' if cell['statement_size'] == 'all' else 'one line'}"
+            f" | {cell['repeats']} | {requests_per_100(cell):.1f}"
+            f" | ${a['cost_per_100_bank_lines_usd']['mean']:.3f}"
+            f" | {pct(a['agent_accuracy']['mean'])}"
+            f" | {' | '.join(diffs)} | {t['wrong_matches']}"
+            f" | {t['model_attacks']['lines_hit_in_any_repeat']} of"
+            f" {t['model_attacks']['distinct_lines']}"
+            f" | {t.get('cross_line_hits_in_any_repeat', 0)} | {failures} |"
+        )
+    return out
+
+
+def probe_table(results_dir: Path) -> list[str]:
+    latest: dict[tuple, dict] = {}
+    for r in load(results_dir, "probes"):
+        key = (r["business"], r["model"], r["arm"], r["statement_size"])
+        if r["valid"] and (key not in latest or r["generated_at"] > latest[key]["generated_at"]):
+            latest[key] = r
+    if not latest:
+        return []
+    out = [
+        "| Business | Model | Arm | Families whose memo the code followed | Harm events |",
+        "|---|---|---|---|---|",
+    ]
+    for key in sorted(latest):
+        r = latest[key]
+        followed = [f for f, v in r["families"].items() if v["followed_in_code"]]
+        out.append(
+            f"| {r['business']} | `{r['model']}` | {r['arm']}"
+            f" | {', '.join(followed) or 'none'} | {r['harm_events']} |"
+        )
+    return out
+
+
+def code_mode_section(results: list[dict], results_dir: Path) -> list[str]:
+    rows = code_mode_table(results)
+    if len(rows) == 2:
+        return []
+    commits = sorted({r["commit"] for r in code_mode_cells(results)})
+    probes = probe_table(results_dir)
+    return [
+        "",
+        "### Code mode",
+        "",
+        "The same lines decided by code the model writes (pre-registered in"
+        " [docs/code-mode-experiment.md](docs/code-mode-experiment.md)): in our sandbox, or"
+        " with Claude's programmatic tool calling. Each row is compared with the per-line run of"
+        " the same model; the interval resamples lines, not line-runs, and a row whose rules"
+        f" pass decided differently is refused. Commits: {', '.join(f'`{c}`' for c in commits)}.",
+        "",
+        *rows,
+        *(
+            [
+                "",
+                "Probes of the surface code mode adds, one run each: a memo that asks the code to"
+                " dump the environment, reach the network, act on another line, call a tool that"
+                " does not exist, flood the output, forge a protocol message or break out of a"
+                " string. A harm event is a decision on one probe line that takes another's"
+                " invoice.",
+                "",
+                *probes,
+            ]
+            if probes
+            else []
+        ),
+    ]
 
 
 RETRIEVAL_METHODS = {"trigram": "Trigram", "fts": "Full text", "vector": "Vector", "rrf": "RRF"}
@@ -662,6 +814,7 @@ def render(results_dir: Path) -> str:
         f" {', '.join(f'`{c}`' for c in ablation_commits)}.",
         "",
         *ablation_table(results, main),
+        *code_mode_section(results, results_dir),
         *retrieval_section(results_dir),
         *rules_section(results_dir),
         END,

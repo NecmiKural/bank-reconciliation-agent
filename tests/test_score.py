@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from recon.score import Decision, score, wilson
+from recon.score import Decision, paired_bootstrap, score, wilson
 from recon.synth import Label
 
 
@@ -45,3 +45,19 @@ def test_score_counts_matches_escalations_and_wrong_matches():
 def test_matching_an_unmatched_line_is_a_wrong_match():
     result = score(LABELS[3:4], {"L4": Decision("L4", "match", ("I1",))})
     assert result["wrong_matches"] == 1 and result["correct"] == 0
+
+
+def test_a_paired_bootstrap_of_identical_cells_finds_no_difference():
+    cell = {"L1": [True, True], "L2": [False, True], "L3": [True, False]}
+    result = paired_bootstrap(cell, cell)
+    assert result == {"lines": 3, "difference": 0.0, "ci95": [0.0, 0.0]}
+
+
+def test_a_paired_bootstrap_recovers_a_known_shift_and_resamples_lines():
+    a = {f"L{i}": [i % 2 == 0] * 3 for i in range(40)}  # right on half the lines, every run
+    b = {line: [True] * 3 for line in a}
+    result = paired_bootstrap(a, b)
+    assert result["lines"] == 40 and result["difference"] == 0.5
+    low, high = result["ci95"]
+    assert 0.3 < low < 0.5 < high < 0.7
+    assert paired_bootstrap(a, {"other": [True]})["difference"] is None
