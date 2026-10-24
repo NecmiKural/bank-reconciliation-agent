@@ -235,7 +235,7 @@ def run_call(
         code = json.loads(call.function.arguments)["code"]
         if not isinstance(code, str):
             raise TypeError
-    except (ValueError, KeyError, TypeError):
+    except (ValueError, KeyError, TypeError, RecursionError):
         return json.dumps({"error": "run_python takes one string argument, code"}), box
     cell = box.run(code, lambda method, params: bridge.handle(method, params, "sandbox"))
     stats.cells += 1

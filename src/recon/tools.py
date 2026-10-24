@@ -154,7 +154,7 @@ class Toolbox:
         try:
             args = json.loads(arguments)
             return handlers[name](**args)
-        except (json.JSONDecodeError, TypeError) as exc:
+        except (json.JSONDecodeError, TypeError, RecursionError) as exc:
             return {"error": f"bad arguments for {name}: {exc}"}, None
         except psycopg.DataError as exc:
             return {"error": f"the database rejected that input: {type(exc).__name__}"}, None

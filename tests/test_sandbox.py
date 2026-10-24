@@ -200,12 +200,21 @@ def test_plain_output_cannot_forge_a_protocol_message(image):
     assert result.stdout == "real\n" and not result.killed
 
 
-def test_garbage_on_the_protocol_pipe_ends_the_cell_safely(image):
-    code = """
+@pytest.mark.parametrize(
+    "line",
+    [
+        'b"not json\\n"',
+        # nesting that json.loads gives up on with RecursionError, inside the line cap;
+        # found while extracting the sandbox into mcp-code-mode
+        'b"[" * 30000 + b"]" * 30000 + b"\\n"',
+    ],
+)
+def test_garbage_on_the_protocol_pipe_ends_the_cell_safely(image, line):
+    code = f"""
 import os
 for fd in range(3, 10):
     try:
-        os.write(fd, b"not json\\n")
+        os.write(fd, {line})
     except OSError:
         pass
 """

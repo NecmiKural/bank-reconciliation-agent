@@ -159,7 +159,7 @@ class Sandbox:
             return "invalid"
         try:
             message = json.loads(raw)
-        except ValueError:
+        except (ValueError, RecursionError):  # deep nesting raises RecursionError
             return "invalid"
         return message if _shape_ok(message) else "invalid"
 

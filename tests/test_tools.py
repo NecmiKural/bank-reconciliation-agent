@@ -118,6 +118,7 @@ def test_escalate_is_terminal_and_bad_input_is_an_error_not_a_crash():
     _, decision = call(t, "escalate", reason="no candidate")
     assert decision.decision == "escalate" and decision.rationale == "no candidate"
     assert "error" in t.call("search_candidates", "{not json")[0]
+    assert "error" in t.call("search_candidates", "[" * 30000 + "]" * 30000)[0]  # too deep
     assert "error" in t.call("delete_everything", "{}")[0]
     assert "error" in call(t, "search_candidates", payee="x")[0]  # missing argument
 

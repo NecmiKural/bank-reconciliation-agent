@@ -203,3 +203,12 @@ def test_the_statement_summary_counts_calls_and_refusals():
     assert summary["model_requests"] == 2 and summary["cells"] == 2
     assert summary["bridge_refusals"] == {"scope": 1}
     assert summary["bridge_calls"]["search_candidates"] == 3
+
+
+def test_arguments_nested_too_deep_to_parse_are_an_error_not_a_crash():
+    from types import SimpleNamespace
+
+    deep = "[" * 30000 + "]" * 30000
+    call = SimpleNamespace(function=SimpleNamespace(name="run_python", arguments=deep))
+    content, box = codemode.run_call(call, None, None, None, [], None, None)
+    assert "one string argument" in json.loads(content)["error"] and box is None
