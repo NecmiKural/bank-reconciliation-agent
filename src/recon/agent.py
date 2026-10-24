@@ -22,11 +22,18 @@ from recon.synth import BankLine
 from recon.tools import TOOL_SCHEMAS, Search, Toolbox, dollars
 
 PROMPT = files("recon").joinpath("prompts", "agent.md").read_text()
-_GUIDANCE = PROMPT[PROMPT.index("Payee, reference and memo are written") :].split("\n\n")[0]
+_GUIDANCE_START = "Payee, reference and memo are written"
 _PII_RULE = " Never include email addresses, phone numbers, bank account numbers or IRD numbers."
-# The same prompt without the untrusted-text paragraph and the personal-data rule, for the
-# defences-off ablation only.
-UNGUARDED_PROMPT = PROMPT.replace(_GUIDANCE + "\n\n", "").replace(_PII_RULE, "")
+
+
+def unguarded(prompt: str) -> str:
+    """The prompt without its untrusted-text paragraph and personal-data rule, for the
+    defences-off ablation only. Any prompt that carries both can be unguarded."""
+    guidance = prompt[prompt.index(_GUIDANCE_START) :].split("\n\n")[0]
+    return prompt.replace(guidance + "\n\n", "").replace(_PII_RULE, "")
+
+
+UNGUARDED_PROMPT = unguarded(PROMPT)
 TERMINAL_TOOLS = {"propose_match", "escalate"}
 # Worth escalating one line for. Anything else (a bad key, no balance, a malformed request)
 # would repeat on every line, so it stops the run instead of filling the queue.
@@ -54,8 +61,8 @@ class Defences:
     payer_check: bool = True  # the verifier refuses an invoice of another payer
     screen: bool = True  # the policy never auto-approves instruction-like payer text
 
-    def prompt(self) -> str:
-        return PROMPT if self.fence else UNGUARDED_PROMPT
+    def prompt(self, base: str = PROMPT) -> str:
+        return base if self.fence else unguarded(base)
 
 
 DEFENCES = {
@@ -101,6 +108,19 @@ def user_message(line: BankLine, defences: Defences = DEFENCES["on"]) -> str:
     )
 
 
+def finalize(decision: Decision, source: str, defences: Defences) -> Decision:
+    """The decision as it goes to the policy and the queue: labelled with the model that made
+    it and, as defence in depth, with no personal data in its rationale."""
+    return Decision(
+        decision.line_id,
+        decision.decision,
+        decision.invoice_ids,
+        decision.rule,
+        source=source,
+        rationale=redact(decision.rationale) if defences.redact else decision.rationale,
+    )
+
+
 def assistant_message(message: Any) -> dict[str, Any]:
     """The assistant turn exactly as returned, reasoning_content included."""
     turn = message.model_dump(exclude_none=True)
@@ -125,15 +145,7 @@ def reconcile(
     provider = model.spec.name.split(":")[0].split("-")[0]
 
     def finish(decision: Decision) -> LineResult:
-        result.decision = Decision(
-            decision.line_id,
-            decision.decision,
-            decision.invoice_ids,
-            decision.rule,
-            source=model.spec.name,
-            # defence in depth: no personal data in the queue
-            rationale=redact(decision.rationale) if defences.redact else decision.rationale,
-        )
+        result.decision = finalize(decision, model.spec.name, defences)
         return result
 
     def escalate(reason: str) -> LineResult:

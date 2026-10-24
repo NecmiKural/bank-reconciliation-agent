@@ -41,5 +41,7 @@ def test_only_full_valid_live_runs_feed_the_readme():
         {**base, "valid": True, "generated_at": "2026-10-20T01:00:00+00:00", "limit": 40},
         {**base, "valid": False, "generated_at": "2026-10-21T01:00:00+00:00"},
         {**base, "valid": True, "generated_at": "2026-10-22T01:00:00+00:00", "model": "other"},
+        {**base, "valid": True, "generated_at": "2026-10-23T01:00:00+00:00", "arm": "sandbox"},
     ]
     assert report.pick(runs, "A", "on")["generated_at"].startswith("2026-10-18")
+    assert all(report.per_line(r) for r in report.full_runs(runs))

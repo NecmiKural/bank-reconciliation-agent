@@ -6,6 +6,10 @@ payer-written text comes back redacted and fenced, and every query runs as the r
 role. No tool writes anything, to the ledger or to the review queue.
 
 Run `recon mcp` for stdio. The database must already hold a business (`recon load`).
+
+Code mode builds the same server over a statement's open lines (`toolboxes`): each line keeps
+one Toolbox for the whole statement, so an invoice can be combined or proposed only on the
+line whose search returned it, as in the agent's own conversations.
 """
 
 from __future__ import annotations
@@ -36,7 +40,10 @@ WHERE i.status = 'open' AND i.id = ANY(%(ids)s)
 """
 
 
-def build(connect: Callable[[], psycopg.Connection] = db.connect) -> MCPServer:
+def build(
+    connect: Callable[[], psycopg.Connection] = db.connect,
+    toolboxes: dict[str, tools.Toolbox] | None = None,
+) -> MCPServer:
     server = MCPServer(
         "recon",
         instructions=(
@@ -61,6 +68,11 @@ def build(connect: Callable[[], psycopg.Connection] = db.connect) -> MCPServer:
 
     def toolbox(line: BankLine) -> tools.Toolbox:
         return tools.Toolbox(line, tools.db_search(conn))
+
+    def scoped(line_id: str) -> tools.Toolbox:
+        if line_id not in toolboxes:
+            raise ValueError(f"line {line_id!r} is not an open line of this statement")
+        return toolboxes[line_id]
 
     @server.tool(annotations=READ_ONLY)
     def list_bank_lines(offset: int = 0, limit: int = 20) -> dict[str, Any]:
@@ -90,12 +102,17 @@ def build(connect: Callable[[], psycopg.Connection] = db.connect) -> MCPServer:
     def search_candidates(line_id: str, payee: str, invoice_number: str = "") -> dict[str, Any]:
         """Open invoices for a bank line, each with its amount relation computed in code."""
         with lock:
-            result, _ = toolbox(bank_line(line_id)).search_candidates(payee, invoice_number)
+            box = scoped(line_id) if toolboxes is not None else toolbox(bank_line(line_id))
+            result, _ = box.search_candidates(payee, invoice_number)
         return result
 
     @server.tool(annotations=READ_ONLY)
     def find_combinations(line_id: str, invoice_ids: list[str]) -> dict[str, Any]:
         """Sets of 2 or 3 of the given open invoices of one payer that add up to the line."""
+        if toolboxes is not None:
+            with lock:
+                result, _ = scoped(line_id).find_combinations(invoice_ids)
+            return result
         with lock:
             line = bank_line(line_id)
             box = toolbox(line)

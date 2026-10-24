@@ -40,6 +40,12 @@ def load(results_dir: Path, kind: str = "runs") -> list[dict[str, Any]]:
     return [f for f in files if MARKERS[kind] in f]
 
 
+def per_line(result: dict) -> bool:
+    """A run of the per-line agent. Code-mode runs (an arm other than direct) are reported in
+    their own section and never become a headline row."""
+    return result.get("arm", "direct") == "direct"
+
+
 def pick(
     results: list[dict], business: str, defences: str, model: str = PRIMARY_MODEL
 ) -> dict | None:
@@ -47,7 +53,8 @@ def pick(
     found = [
         r
         for r in results
-        if r["business"] == business
+        if per_line(r)
+        and r["business"] == business
         and r["model"] == model
         and r.get("defences", {}).get("name", "on") == defences  # older files: always on
         and r["mode"] in ("live", "record")
@@ -179,7 +186,9 @@ def attack_surface(results_dir: Path) -> dict | None:
 def full_runs(results: list[dict]) -> list[dict]:
     """Every valid live run over a whole business, any model, any defences, oldest first."""
     found = [
-        r for r in results if r["mode"] in ("live", "record") and r["limit"] is None and r["valid"]
+        r
+        for r in results
+        if per_line(r) and r["mode"] in ("live", "record") and r["limit"] is None and r["valid"]
     ]
     return sorted(found, key=lambda r: r["generated_at"])
 
