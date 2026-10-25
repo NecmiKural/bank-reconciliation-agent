@@ -2,6 +2,8 @@
 
 A rules-first, tool-calling agent that matches New Zealand small-business bank lines to invoices on a synthetic ledger. Deterministic rules close the lines with one obvious answer. For the rest, the agent searches and proposes matches through four narrow tools, code verifies every proposal, a shadow policy records which ones it would let skip review, and nothing is posted without a reviewer's approval. **No sum the model computes is trusted: code computes every amount relation and re-checks every proposal. The model cannot write to the ledger; it can only queue proposals.** Every measured number in the results block below is regenerated from `results/*.json` by one command, and CI fails if it drifts.
 
+[![Open the replay viewer in Hugging Face Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-md.svg)](https://huggingface.co/spaces/necmikural/recon-replay) The four committed slices step by step in the browser: replayed from recorded runs, synthetic data, no key.
+
 ![The offline demo: the first 40 lines the rules pass leaves open, replayed through the agent and the shadow policy](docs/demo.svg)
 
 <!-- results:start -->
