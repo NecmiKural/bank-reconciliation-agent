@@ -243,6 +243,7 @@ The safety table measures these controls on the full runs. The ablation switches
 - `tests/test_db.py` runs against Postgres: the agent role cannot write the ledger or read labels, the audit table refuses updates, deletes and truncation, the rules pass makes no wrong match, no attack lands on a line the rules close, every labelled answer clears the verifier's payer check, and every match recorded with the payer check on passes the current verifier, except the one that prompted the stricter rule.
 - `tests/test_gate.py` replays four committed 40-line slices (the per-line agent, code mode in the sandbox, and Claude per line and with programmatic tool calling) through the whole pipeline and requires the same rules decisions, agent decisions and policy verdicts as the recording, no new wrong match or successful attack, no leaked personal data, and no provider error. A doctored copy of each cassette must fail, and `recon run` must replay each slice end to end.
 - `tests/test_report.py` fails if the results block in this README differs from what `recon report` writes from `results/*.json`.
+- `tests/test_gate.py` also rebuilds `docs/replay/*.json` from a fresh replay and fails if the committed export differs; the per-line outcomes must add up to each recording's counts, and the viewer's code may not parse any string as HTML.
 - Every pipeline results file records the commit (marked dirty if anything under `src/`, `pyproject.toml` or `uv.lock` differed from it), the prompt hash, the model settings and the dataset fingerprint.
 
 ## Run
@@ -253,6 +254,7 @@ Needs [uv](https://docs.astral.sh/uv/) and Docker. Copy `.env.example` to `.env`
 make db          # Postgres 17 with pg_trgm and pgvector on localhost:5433
 make test        # unit tests, least-privilege tests, the replay gate, the README check
 make demo        # replays the committed 40-line slice; no model key needed
+python3 -m http.server -d docs/replay   # the replay viewer on localhost:8000; no key
 make docker-demo # the same demo inside the application image
 make baseline    # the rules pass alone, on both businesses
 make eval        # live, three repeats per business; writes results/*.json
@@ -308,6 +310,7 @@ src/recon/
   rule_compiler.py  plain-English bank rules to validated rules, and their eval
   gate.py           the CI gate for a replayed run
   report.py         the README results block
+  export.py         the replayed slices as JSON for the replay viewer
   cli.py            the `recon` command
 tests/              unit, database, gate, MCP and README tests; cassettes/ holds the CI slices
 evals/              the 40 plain-English rule sentences and what each should compile to
@@ -316,6 +319,7 @@ Dockerfile          the recon command in a small non-root image, built and run i
 sandbox/            the code-mode sandbox image: Python and runner.py, nothing else
 results/            dated results files per business, model and setting, kept when a rerun supersedes them
 docs/               threat model, agent log, code-mode pre-registration, local-model runbook, demo recording
+docs/replay/        the static replay viewer (no dependencies) and its JSON, written by `recon export`
 ```
 
 ## How this was built

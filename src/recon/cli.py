@@ -14,6 +14,7 @@ from recon import (
     codemode,
     db,
     evaluate,
+    export,
     llm,
     report,
     retrieval,
@@ -191,6 +192,13 @@ def cmd_report(args: argparse.Namespace) -> None:
     print("README results are up to date" if not stale else "README results rewritten")
 
 
+def cmd_export(args: argparse.Namespace) -> None:
+    stale = export.write(check=args.check)
+    if args.check and stale:
+        raise SystemExit(f"docs/replay is stale for {stale}: run `make replay-export`")
+    print("docs/replay is up to date" if not stale else f"rewrote docs/replay for {stale}")
+
+
 def printable(text: str) -> str:
     """Model- and payer-written text for a terminal: control characters dropped, and the
     dashes this project does not print turned into commas (recordings keep the original)."""
@@ -309,6 +317,10 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("report", help="rewrite the README results block from results/*.json")
     p.add_argument("--check", action="store_true", help="fail if the block is stale")
     p.set_defaults(func=cmd_report)
+
+    p = sub.add_parser("export", help="replay the CI slices into docs/replay/ for the viewer")
+    p.add_argument("--check", action="store_true", help="fail if a committed file is stale")
+    p.set_defaults(func=cmd_export)
 
     p = sub.add_parser("review", help="list, approve or reject proposals as the reviewer")
     actions = p.add_subparsers(dest="action", required=True)
