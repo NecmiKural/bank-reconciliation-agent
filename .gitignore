@@ -18,6 +18,8 @@ runs/
 /cassettes/
 .context/
 graphify-out/
+# written by CI for the Hugging Face Space only
+docs/replay/build.json
 
 # OS
 .DS_Store

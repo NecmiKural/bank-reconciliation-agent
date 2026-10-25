@@ -11,10 +11,12 @@ from pathlib import Path
 import psycopg
 import pytest
 
-from recon import db, evaluate, gate, llm, sandbox, synth
+from recon import db, evaluate, export, gate, llm, sandbox, synth
 
+ROOT = Path(__file__).resolve().parents[1]
 CASSETTES = Path(__file__).parent / "cassettes"
-SLICES = ["A-slice", "A-slice-sandbox", "A-slice-claude", "A-slice-ptc"]
+REPLAY = ROOT / "docs" / "replay"
+SLICES = list(export.SLICES)
 
 
 def sandbox_ready() -> bool:
@@ -107,7 +109,7 @@ def test_a_doctored_cassette_fails_the_gate(recorded, tmp_path):
 @pytest.mark.parametrize("name", SLICES)
 def test_committed_recordings_hold_no_secrets_or_personal_data(name):
     planted = evaluate.planted_pii(synth.generate(synth.SPECS[0]))
-    for path in (CASSETTES / f"{name}.jsonl", CASSETTES / f"{name}.json"):
+    for path in (CASSETTES / f"{name}.jsonl", CASSETTES / f"{name}.json", REPLAY / f"{name}.json"):
         text = path.read_text()
         secret = r"\bsk-[A-Za-z0-9_-]{16,}|x-api-key|Bearer |[Aa]uthorization"
         assert not re.search(secret, text), path
@@ -131,6 +133,47 @@ def test_recon_run_replays_the_slice_end_to_end(recorded, tmp_path, monkeypatch,
     agent = recording["runs"][0]["summary"]["agent"]
     bad = sum(line.startswith("BAD") for line in out.splitlines())
     assert bad == agent["n"] - agent["correct"]  # the lines the recording got wrong, no more
+
+
+def test_the_committed_replay_export_matches_a_fresh_replay(recorded):
+    cassette, recording = recorded
+    committed = (REPLAY / f"{cassette.stem}.json").read_text()
+    fresh = export.render(export.build(cassette, recording, ROOT / "README.md"))
+    assert fresh == committed, "docs/replay is stale: run `make replay-export`"
+
+
+@pytest.mark.parametrize("name", SLICES)
+def test_the_replay_export_counts_what_the_recording_counted(name):
+    """The viewer shows outcomes per line; together they must say what the recording said."""
+    lines = json.loads((REPLAY / f"{name}.json").read_text())["lines"]
+    summary = json.loads((CASSETTES / f"{name}.json").read_text())["runs"][0]["summary"]
+    agent = summary["agent"]
+    assert len(lines) == agent["n"]
+    assert sum(line["outcome"] == "correct" for line in lines) == agent["correct"]
+    assert sum(line["outcome"] == "wrong_match" for line in lines) == agent["wrong_matches"]
+    assert sum(line["decision"]["decision"] == "escalate" for line in lines) == agent["escalated"]
+    hits = [line for line in lines if line["attack"] and line["attack"]["succeeded"]]
+    model_hits = [line for line in hits if line["attack"]["goal"] in evaluate.MODEL_GOALS]
+    assert len(model_hits) == summary["attacks"]["model_decided"]["all"]["success"]
+
+
+@pytest.mark.parametrize("name", SLICES)
+def test_each_replay_file_stays_small(name):
+    assert (REPLAY / f"{name}.json").stat().st_size < 400_000
+
+
+def test_the_viewer_never_parses_a_string_as_markup():
+    """Recorded model text and planted payloads are hostile by design: text nodes only."""
+    code = (REPLAY / "app.js").read_text()
+    for sink in ("innerHTML", "insertAdjacentHTML", "outerHTML"):
+        assert sink not in code, sink
+
+
+def test_the_viewer_copy_avoids_overclaiming_phrases():
+    banned = ("production", "injection-proof", "robust to prompt injection", "worse model")
+    for name in ("index.html", "app.js", "README.md"):
+        text = (REPLAY / name).read_text().lower()
+        assert not [phrase for phrase in banned if phrase in text], name
 
 
 def test_payer_text_is_printed_without_control_characters():

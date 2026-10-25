@@ -48,3 +48,36 @@ jobs:
             --mode replay --cassette tests/cassettes/A-slice.jsonl --workers 4 | tee demo.log
           test "$(grep -c '^ok ' demo.log)" -eq 40
           ! grep -q '^BAD' demo.log
+
+  # Uploads the replay viewer to its Hugging Face Space after both jobs pass on main, when
+  # docs/replay changed. The token lives only in this job's environment; until it is set,
+  # every step after the check is skipped.
+  space:
+    needs: [test, image]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: hugging-face
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: check
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then echo "HF_TOKEN is not set: skipping the Space upload"; exit 0; fi
+          # an unknown base (a new branch or a force push) counts as a change
+          if git diff --quiet "$BEFORE" HEAD -- docs/replay 2>/dev/null; then
+            echo "docs/replay did not change"; exit 0
+          fi
+          echo "upload=true" >> "$GITHUB_OUTPUT"
+      - if: steps.check.outputs.upload == 'true'
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - if: steps.check.outputs.upload == 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          printf '{"commit": "%s"}\n' "${GITHUB_SHA::7}" > docs/replay/build.json
+          uvx --from huggingface_hub==2.3.0 hf upload necmikural/recon-replay docs/replay . \
+            --repo-type space --commit-message "deploy ${GITHUB_SHA::7}"

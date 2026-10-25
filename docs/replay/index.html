@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="description" content="Recorded runs of a bank reconciliation agent on synthetic data, replayed step by step. Nothing on this page calls a model.">
+<title>Bank reconciliation agent replay</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="masthead">
+  <p class="kicker">bank-reconciliation-agent / replay viewer</p>
+  <h1>Recorded agent runs, replayed step by step</h1>
+  <div class="notices">
+    <p class="notice"><strong>Synthetic data only.</strong> Every line, payer and invoice here was generated from a fixed seed; none is a real business or person.</p>
+    <p class="notice"><strong>Replayed from recorded runs, not live.</strong> Model replies come from recordings; the rules pass, tools, verifier and policy were run again on them. Nothing on this page calls a model.</p>
+  </div>
+  <p class="build" id="build">Personal project, MIT licence. <a href="https://github.com/NecmiKural/bank-reconciliation-agent">Source and results on GitHub</a></p>
+</header>
+
+<main>
+  <noscript>
+    <p class="panel">This viewer needs JavaScript. The recorded slices are plain JSON: <a href="A-slice.json">A-slice.json</a>, <a href="A-slice-sandbox.json">A-slice-sandbox.json</a>, <a href="A-slice-claude.json">A-slice-claude.json</a> and <a href="A-slice-ptc.json">A-slice-ptc.json</a>.</p>
+  </noscript>
+
+  <section class="headline" aria-labelledby="headline-title">
+    <h2 id="headline-title">From the README results</h2>
+    <blockquote id="headline"></blockquote>
+    <p class="source" id="headline-source">The four slices below are the 40-line recordings that CI replays on every change.</p>
+  </section>
+
+  <section class="controls" aria-label="Choose what to show">
+    <div class="field">
+      <label for="slice">Recorded slice</label>
+      <select id="slice"></select>
+    </div>
+    <p class="slice-info" id="slice-info"></p>
+    <div class="views" id="views" role="group" aria-label="View" hidden>
+      <button type="button" id="show-lines" aria-pressed="true">Lines</button>
+      <button type="button" id="show-statement" aria-pressed="false">Statement</button>
+    </div>
+  </section>
+
+  <p class="alert" id="alert" role="alert" hidden></p>
+
+  <div class="workspace" id="lines-view">
+    <section class="ledger" aria-labelledby="lines-title">
+      <div class="ledger-head">
+        <h2 id="lines-title">Lines the rules pass left open</h2>
+        <div class="field">
+          <label for="outcome">Outcome</label>
+          <select id="outcome">
+            <option value="all">All lines</option>
+            <option value="correct">Correct</option>
+            <option value="sent_to_person">Sent to a person</option>
+            <option value="wrong_match">Wrong match</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap" role="region" aria-labelledby="lines-title" tabindex="0">
+        <table>
+          <thead>
+            <tr><th scope="col">Line</th><th scope="col" class="num">Amount (NZ$)</th><th scope="col">Decision</th><th scope="col">Outcome</th><th scope="col">Payload</th><th scope="col">Policy</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="empty" hidden>No line in this slice has that outcome.</p>
+    </section>
+
+    <section class="detail" id="detail" aria-labelledby="detail-title">
+      <h2 id="detail-title">Choose a line</h2>
+      <div class="stepper" id="stepper" hidden>
+        <p class="step-status" id="step-status" role="status"></p>
+        <ol class="ticks" id="ticks" aria-hidden="true"></ol>
+        <div class="step-nav">
+          <button type="button" id="prev">Previous step</button>
+          <button type="button" id="next">Next step</button>
+          <span class="hint">or the left and right arrow keys</span>
+        </div>
+        <article class="step" id="step"></article>
+      </div>
+    </section>
+  </div>
+
+  <section class="statement" id="statement-view" aria-labelledby="statement-title" hidden>
+    <h2 id="statement-title">The statement conversation</h2>
+    <p id="statement-intro"></p>
+    <ol class="turns" id="turns"></ol>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>Personal data patterns are redacted before text reaches a model; this page shows the redacted text. Long dashes in recorded text are shown as commas, as the command line prints them. Planted payloads are attacks written into the synthetic data on purpose; they are shown as plain text and never followed.</p>
+</footer>
+</body>
+</html>

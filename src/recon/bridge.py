@@ -69,6 +69,12 @@ def _terminal_schema(name: str) -> dict[str, Any]:
 class Bridge:
     """One statement's tools. Use as a context manager: it holds an MCP client session."""
 
+    # Every call with its arguments and result, for the replay export (src/recon/export.py);
+    # trace rows stay metadata-only. NOTE: one list shared by every bridge in the process,
+    # set only while the export replays a slice with one worker; an instance field returned
+    # with each Statement is the upgrade if anything else needs it.
+    log: list[dict[str, Any]] | None = None
+
     def __init__(
         self,
         lines: list[BankLine],
@@ -165,6 +171,17 @@ class Bridge:
                     else None,
                 }
             )
+            if Bridge.log is not None:
+                Bridge.log.append(
+                    {
+                        "line_id": line_id,
+                        "tool": name,
+                        "caller": caller,
+                        "args": args,
+                        "refusal": refusal,
+                        "result": outcome,
+                    }
+                )
             return json.dumps(outcome, sort_keys=True)
 
     def _handle(self, name: Any, args: Any) -> tuple[str | None, dict[str, Any]]:
