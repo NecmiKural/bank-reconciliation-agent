@@ -155,6 +155,13 @@ h1 {
 
 main {
   padding: 0 var(--gutter) var(--gutter);
+  min-height: 100svh;
+}
+
+/* Until the first slice loads, the sections keep their place but stay unseen, so nothing on
+   screen moves when the data arrives. */
+main[aria-busy="true"] > :not(noscript) {
+  visibility: hidden;
 }
 
 /* The README headline, set like a pull quote. */

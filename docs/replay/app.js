@@ -87,6 +87,8 @@ async function show(slice, rest = []) {
     $("alert").textContent = `Could not load the recording: ${error.message}`;
     $("alert").hidden = false;
     return;
+  } finally {
+    document.querySelector("main").removeAttribute("aria-busy");
   }
   $("alert").hidden = true;
   state.slice = slice;
